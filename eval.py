@@ -26,6 +26,8 @@ class GenericEvaluator(DatasetEvaluator):
         self._cpu_device = torch.device("cpu")
         self._logger = logging.getLogger(__name__)
 
+        self._cfg = cfg
+
         self.img_loader = SKImageLoader(cfg, is_train=False)
 
         self._metadata = MetadataCatalog.get(dataset_name)
@@ -54,7 +56,7 @@ class GenericEvaluator(DatasetEvaluator):
         for input, output in zip(inputs, outputs):
             prediction = {"image_id": input["image_id"], "image": input["image"], 'groundtruth':input}
 
-        # TODO this is ugly
+            # TODO this is ugly
             if "instances" in output:
                 instances = output["instances"].to(self._cpu_device)
                 prediction["instances"] = instances
@@ -122,10 +124,12 @@ class VizHook(HookBase):
 
                     metadata = MetadataCatalog.get(self._dataset_name)
                     viz = Visualizer(img, metadata)
-                    viz.draw_dataset_dict(results["groundtruth"][n]).save('/home/bunk/GT.png')
+                    viz.draw_dataset_dict(results["groundtruth"][n]).save(
+                        os.path.join(self._cfg.OUTPUT_DIR, 'GT_{}.png'.format(n)))
 
                     viz = Visualizer(img, metadata)
-                    viz.draw_instance_predictions(results["instances"][n]).save('/home/bunk/pred.png')
+                    viz.draw_instance_predictions(results["instances"][n]).save(
+                        os.path.join(self._cfg.OUTPUT_DIR, 'pred_{}.png'.format(n)))
 
                 # assert isinstance(
                 #     results, dict

@@ -14,9 +14,7 @@ from detectron2.data import transforms as T
 from detectron2.evaluation import DatasetEvaluator
 
 
-def get_csv(cfg):
-    root_dir = '/scratch/bunk/osman/mating_cells/COCO/DIR/train'
-
+def get_csv(root_dir):
     imglist = glob(os.path.join(root_dir, '*.jpg')) + \
                     glob(os.path.join(root_dir, '*.tif')) + \
                     glob(os.path.join(root_dir, '*.png'))

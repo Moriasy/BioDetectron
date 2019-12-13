@@ -11,16 +11,20 @@ from data import get_csv
 from eval import VizHook
 
 
-def get_dicts():
-    global cfg
-    return get_csv(cfg)
+def get_train_dicts():
+    global train_path
+    return get_csv(train_path)
+
+def get_val_dicts():
+    global val_path
+    return get_csv(val_path)
 
 
 def setup(args):
     cfg = get_cfg()
-    cfg.merge_from_file("/home/bunk/Detectron/faster_rcnn_X_101_32x8d_FPN_3x.yaml")
+    cfg.merge_from_file("./faster_rcnn_X_101_32x8d_FPN_3x.yaml")
     cfg.DATASETS.TRAIN = ("osman",)
-    cfg.DATASETS.TEST = ("osman",)
+    cfg.DATASETS.TEST = ("osman_val",)
     cfg.DATALOADER.NUM_WORKERS = 2
     cfg.INPUT.MAX_SIZE_TRAIN = 1608
     cfg.SOLVER.WARMUP_ITERS = 250
@@ -38,10 +42,17 @@ def setup(args):
 
 
 def main(args):
-    global cfg
+    global train_path
+    global val_path
 
-    DatasetCatalog.register("osman", get_dicts)
+    train_path = '/scratch/bunk/osman/mating_cells/COCO/DIR/train'
+    val_path = '/scratch/bunk/osman/mating_cells/COCO/DIR/val'
+
+    DatasetCatalog.register("osman", get_train_dicts)
     MetadataCatalog.get("osman").thing_classes = ["background", "good_mating", "bad_mating", "single_cell", "crowd"]
+
+    DatasetCatalog.register("osman_val", get_val_dicts)
+    MetadataCatalog.get("osman_val").thing_classes = ["background", "good_mating", "bad_mating", "single_cell", "crowd"]
 
     cfg = setup(args)
 
@@ -59,7 +70,7 @@ def main(args):
     trainer.resume_or_load(resume=args.resume)
 
     trainer.register_hooks([
-        VizHook(cfg.TEST.EVAL_PERIOD, lambda: trainer.eval(cfg, trainer.model, 'osman'), 'osman'),
+        VizHook(cfg.TEST.EVAL_PERIOD, lambda: trainer.eval(cfg, trainer.model, 'osman_val'), 'osman_val'),
                             ])
 
     return trainer.train()
