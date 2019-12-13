@@ -26,8 +26,6 @@ class GenericEvaluator(DatasetEvaluator):
         self._cpu_device = torch.device("cpu")
         self._logger = logging.getLogger(__name__)
 
-        self._cfg = cfg
-
         self.img_loader = SKImageLoader(cfg, is_train=False)
 
         self._metadata = MetadataCatalog.get(dataset_name)
@@ -105,31 +103,32 @@ class GenericEvaluator(DatasetEvaluator):
 
 
 class VizHook(HookBase):
-    def __init__(self, eval_period, eval_function, dataset_name):
+    def __init__(self, eval_period, eval_function, cfg):
         self._period = eval_period
         self._func = eval_function
-        self._dataset_name = dataset_name
+        self._dataset_name = cfg.DATASETS.TEST
+        self._output_dir = cfg.OUTPUT_DIR
 
     def after_step(self):
         next_iter = self.trainer.iter + 1
         is_final = next_iter == self.trainer.max_iter
         if is_final or (self._period > 0 and next_iter % self._period == 0):
             results = self._func()
-
             if results:
-                for n in range(min(len(results['image_id']), 1)):
+                for n in range(min(len(results['groundtruth']), 10)):
                     img = np.transpose(results["image"][n], (1, 2, 0))
                     img = np.repeat(img, 3, axis=-1)
-                    img = img *  255
+                    img = img * 255
 
-                    metadata = MetadataCatalog.get(self._dataset_name)
+                    metadata = MetadataCatalog.get(self._dataset_name[0])
+
                     viz = Visualizer(img, metadata)
                     viz.draw_dataset_dict(results["groundtruth"][n]).save(
-                        os.path.join(self._cfg.OUTPUT_DIR, 'GT_{}.png'.format(n)))
+                        os.path.join(self._output_dir, 'GT_{}.png'.format(n)))
 
                     viz = Visualizer(img, metadata)
                     viz.draw_instance_predictions(results["instances"][n]).save(
-                        os.path.join(self._cfg.OUTPUT_DIR, 'pred_{}.png'.format(n)))
+                        os.path.join(self._output_dir, 'pred_{}.png'.format(n)))
 
                 # assert isinstance(
                 #     results, dict

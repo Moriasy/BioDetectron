@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 import detectron2.utils.comm as comm
 from detectron2.config import get_cfg
@@ -22,21 +23,25 @@ def get_val_dicts():
 
 def setup(args):
     cfg = get_cfg()
-    cfg.merge_from_file("./faster_rcnn_X_101_32x8d_FPN_3x.yaml")
+    #cfg.merge_from_file("./faster_rcnn_X_101_32x8d_FPN_3x.yaml")
+    cfg.merge_from_file("./res50.yaml")
     cfg.DATASETS.TRAIN = ("osman",)
     cfg.DATASETS.TEST = ("osman_val",)
-    cfg.DATALOADER.NUM_WORKERS = 2
-    cfg.INPUT.MAX_SIZE_TRAIN = 1608
-    cfg.SOLVER.WARMUP_ITERS = 250
-    cfg.SOLVER.BASE_LR = 0.001
-    cfg.SOLVER.CHECKPOINT_PERIOD = 250
+    cfg.DATALOADER.NUM_WORKERS = 4
+    cfg.INPUT.MAX_SIZE_TRAIN = 1333
+    cfg.SOLVER.CHECKPOINT_PERIOD = 1000
     cfg.INPUT.FORMAT = "I"
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4
-    cfg.TEST.EXPECTED_RESULTS = ['bbox', 'AP', 38.5, 0.2]
     cfg.TEST.EVAL_PERIOD = 25
+    cfg.OUTPUT_DIR = '/scratch/bunk/osman/logs'
+    cfg.INPUT.CROP.ENABLED = False
+
+    date_time = datetime.now().strftime("%m%d%y_%H%M%S")
+    cfg.OUTPUT_DIR = os.path.join(cfg.OUTPUT_DIR, date_time)
+
     # cfg.freeze()
     # default_setup(cfg, args)
-    # Setup logger for "densepose" module
+
     setup_logger(output=cfg.OUTPUT_DIR, distributed_rank=comm.get_rank(), name="detectron")
     return cfg
 
@@ -70,7 +75,7 @@ def main(args):
     trainer.resume_or_load(resume=args.resume)
 
     trainer.register_hooks([
-        VizHook(cfg.TEST.EVAL_PERIOD, lambda: trainer.eval(cfg, trainer.model, 'osman_val'), 'osman_val'),
+        VizHook(cfg.TEST.EVAL_PERIOD, lambda: trainer.eval(cfg, trainer.model, 'osman_val'), cfg),
                             ])
 
     return trainer.train()
