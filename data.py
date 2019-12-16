@@ -109,9 +109,9 @@ class SKImageLoader(DatasetMapper):
         # image = image[:,:,0]
         image = np.expand_dims(image, axis=-1)
         image = image.astype(np.float32)
-        image = rescale_intensity(image)
-
-        # print(image.shape)
+        image = (image-90) / 1
+        #image = rescale_intensity(image)
+        image = np.repeat(image, 3, axis=-1)
 
         dataset_dict["image"] = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
 

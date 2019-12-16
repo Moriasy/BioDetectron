@@ -7,6 +7,7 @@ import visdom
 import numpy as np
 from subprocess import Popen, PIPE
 from collections import OrderedDict
+from skimage.exposure import rescale_intensity
 
 import detectron2.utils.comm as comm
 from detectron2.engine import HookBase
@@ -117,8 +118,10 @@ class VizHook(HookBase):
             if results:
                 for n in range(min(len(results['groundtruth']), 10)):
                     img = np.transpose(results["image"][n], (1, 2, 0))
-                    img = np.repeat(img, 3, axis=-1)
-                    img = img * 255
+                    #img = np.repeat(img, 3, axis=-1)
+
+                    img = img * 14.5 + 90
+                    #img = rescale_intensity(img, out_range=(0, 255))
 
                     metadata = MetadataCatalog.get(self._dataset_name[0])
 
