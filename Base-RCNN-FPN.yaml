@@ -29,8 +29,8 @@ MODEL:
     NAME: "MaskRCNNConvUpsampleHead"
     NUM_CONV: 4
     POOLER_RESOLUTION: 14
-  PIXEL_MEAN: [91.4962, 91.4962, 91.4962]
-  PIXEL_STD: [14.1921, 14.1921, 14.1921]
+  PIXEL_MEAN: [0, 0 ,0]
+  PIXEL_STD: [1, 1, 1]
 DATASETS: 
   TRAIN: ("coco_2017_train",)
   TEST: ("coco_2017_val",)
