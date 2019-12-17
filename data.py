@@ -80,7 +80,9 @@ class SKImageLoader(DatasetMapper):
         image = utils.read_image(dataset_dict["file_name"], format=self.img_format)
         utils.check_image_size(dataset_dict, image)
 
-        dataset_dict['ori_image'] = image
+        if not self.is_train:
+            dataset_dict['groundtruth'] = copy.deepcopy(dataset_dict)
+            dataset_dict['groundtruth']["image"] = image
 
         if "annotations" not in dataset_dict:
             image, transforms = T.apply_transform_gens(
@@ -108,15 +110,13 @@ class SKImageLoader(DatasetMapper):
 
         dataset_dict["image"] = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
 
-        #dataset_dict["image"] = torch.as_tensor(image)
-
         # Can use uint8 if it turns out to be slow some day
 
         # USER: Remove if you don't use pre-computed proposals.
-        # if self.load_proposals:
-        #     utils.transform_proposals(
-        #         dataset_dict, image_shape, transforms, self.min_box_side_len, self.proposal_topk
-        #     )
+        if self.load_proposals:
+            utils.transform_proposals(
+                dataset_dict, image_shape, transforms, self.min_box_side_len, self.proposal_topk
+            )
 
         if "annotations" in dataset_dict:
             # USER: Modify this if you want to keep them for some reason.
@@ -131,27 +131,27 @@ class SKImageLoader(DatasetMapper):
                 utils.transform_instance_annotations(
                     obj, transforms, image_shape, keypoint_hflip_indices=self.keypoint_hflip_indices
                 )
-                for obj in dataset_dict["annotations"]
-                if obj.get("iscrowd", 0) == 0 ### MAYBE HAS TO CHANGE FOR LEONIES DATASET
+                for obj in dataset_dict.pop("annotations")
+                if obj.get("iscrowd", 0) == 0
             ]
-            #annos = [obj for obj in dataset_dict.pop("annotations") if obj.get("iscrowd", 0) == 0]
+
             instances = utils.annotations_to_instances(
                 annos, image_shape, mask_format=self.mask_format
             )
             # Create a tight bounding box from masks, useful when image is cropped
-            # if self.crop_gen and instances.has("gt_masks"):
-            #     instances.gt_boxes = instances.gt_masks.get_bounding_boxes()
+            if self.crop_gen and instances.has("gt_masks"):
+                instances.gt_boxes = instances.gt_masks.get_bounding_boxes()
 
             dataset_dict["instances"] = utils.filter_empty_instances(instances)
 
         # USER: Remove if you don't do semantic/panoptic segmentation.
-        # if "sem_seg_file_name" in dataset_dict:
-        #     with PathManager.open(dataset_dict.pop("sem_seg_file_name"), "rb") as f:
-        #         sem_seg_gt = Image.open(f)
-        #         sem_seg_gt = np.asarray(sem_seg_gt, dtype="uint8")
-        #     sem_seg_gt = transforms.apply_segmentation(sem_seg_gt)
-        #     sem_seg_gt = torch.as_tensor(sem_seg_gt.astype("long"))
-        #     dataset_dict["sem_seg"] = sem_seg_gt
+        if "sem_seg_file_name" in dataset_dict:
+            with PathManager.open(dataset_dict.pop("sem_seg_file_name"), "rb") as f:
+                sem_seg_gt = Image.open(f)
+                sem_seg_gt = np.asarray(sem_seg_gt, dtype="uint8")
+            sem_seg_gt = transforms.apply_segmentation(sem_seg_gt)
+            sem_seg_gt = torch.as_tensor(sem_seg_gt.astype("long"))
+            dataset_dict["sem_seg"] = sem_seg_gt
         return dataset_dict
 
 
