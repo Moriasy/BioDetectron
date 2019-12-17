@@ -39,7 +39,7 @@ def get_csv(root_dir):
                 "bbox": [row.x1, row.y1, row.x2, row.y2],
                 "bbox_mode": BoxMode.XYXY_ABS,
                 "segmentation": [],
-                "category_id": row.category_id,
+                "category_id": row.category_id - 1,
                 "iscrowd": 0
             }
             objs.append(obj)
@@ -80,6 +80,8 @@ class SKImageLoader(DatasetMapper):
         image = utils.read_image(dataset_dict["file_name"], format=self.img_format)
         utils.check_image_size(dataset_dict, image)
 
+        dataset_dict['ori_image'] = image
+
         if "annotations" not in dataset_dict:
             image, transforms = T.apply_transform_gens(
                 ([self.crop_gen] if self.crop_gen else []) + self.tfm_gens, image
@@ -98,7 +100,6 @@ class SKImageLoader(DatasetMapper):
             if self.crop_gen:
                 transforms = crop_tfm + transforms
 
-        # image, transforms = T.apply_transform_gens(self.tfm_gens, image)
         image_shape = image.shape[:2]  # h, w
 
         # Pytorch's dataloader is efficient on torch.Tensor due to shared-memory,
@@ -107,11 +108,11 @@ class SKImageLoader(DatasetMapper):
 
         # print(image.shape)
         # image = image[:,:,0]
-        image = np.expand_dims(image, axis=-1)
+        #image = np.expand_dims(image, axis=-1)
         image = image.astype(np.float32)
         image = rescale_intensity(image)
-
-        # print(image.shape)
+        image = (image-(91.4962/255)) / (14.1921/255)
+        #image = np.repeat(image, 3, axis=-1)
 
         dataset_dict["image"] = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
 
@@ -124,12 +125,6 @@ class SKImageLoader(DatasetMapper):
         #     utils.transform_proposals(
         #         dataset_dict, image_shape, transforms, self.min_box_side_len, self.proposal_topk
         #     )
-
-        #### MAYBE FIX???
-        # if not self.is_train:
-        #     dataset_dict.pop("annotations", None)
-        #     dataset_dict.pop("sem_seg_file_name", None)
-        #    return dataset_dict
 
         if "annotations" in dataset_dict:
             # USER: Modify this if you want to keep them for some reason.

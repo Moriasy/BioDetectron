@@ -22,6 +22,7 @@ class GenericEvaluator(DatasetEvaluator):
         self._tasks = self._tasks_from_config(cfg)
         self._distributed = distributed
         self._output_dir = output_dir
+        self._dataset_name = dataset_name
 
         self._cpu_device = torch.device("cpu")
         self._logger = logging.getLogger(__name__)
@@ -30,13 +31,9 @@ class GenericEvaluator(DatasetEvaluator):
 
         self._metadata = MetadataCatalog.get(dataset_name)
 
-        ####### Make generic check !!!
-        # if not hasattr(self._metadata, "json_file"):
-        #     self._logger.warning(f"Metadata was not found in MetaDataCatalog for '{dataset_name}'")
-
     def reset(self):
         self._predictions = []
-        self._results = []
+        self._results = {}
 
     def _tasks_from_config(self, cfg):
         """
@@ -52,7 +49,7 @@ class GenericEvaluator(DatasetEvaluator):
 
     def process(self, inputs, outputs):
         for input, output in zip(inputs, outputs):
-            prediction = {"image_id": input["image_id"], "image": input["image"], 'groundtruth':input}
+            prediction = {"image_id": input["image_id"], "ori_image": input["ori_image"], 'groundtruth':input}
 
             # TODO this is ugly
             if "instances" in output:
@@ -96,58 +93,25 @@ class GenericEvaluator(DatasetEvaluator):
 
     def _eval_predictions(self, task):
         self._results['image_id'] = [self._predictions[0]['image_id']]
-        self._results['image'] = [self._predictions[0]['image']]
+        self._results['ori_image'] = [self._predictions[0]['ori_image']]
         self._results['instances'] = [self._predictions[0]['instances']]
         self._results['groundtruth'] = [self._predictions[0]['groundtruth']]
-        return
 
+        for n in range(min(len(self._results['groundtruth']), 10)):
+            ori_img = self._results["ori_image"][n]
+            img = self._results["image"][n]
 
-class VizHook(HookBase):
-    def __init__(self, eval_period, eval_function, cfg):
-        self._period = eval_period
-        self._func = eval_function
-        self._dataset_name = cfg.DATASETS.TEST
-        self._output_dir = cfg.OUTPUT_DIR
+            metadata = MetadataCatalog.get(self._dataset_name)
 
-    def after_step(self):
-        next_iter = self.trainer.iter + 1
-        is_final = next_iter == self.trainer.max_iter
-        if is_final or (self._period > 0 and next_iter % self._period == 0):
-            results = self._func()
-            if results:
-                for n in range(min(len(results['groundtruth']), 10)):
-                    img = np.transpose(results["image"][n], (1, 2, 0))
-                    img = np.repeat(img, 3, axis=-1)
-                    img = img * 255
+            viz = Visualizer(img, metadata)
+            viz.draw_dataset_dict(self._results["groundtruth"][n]).save(
+                os.path.join(self._output_dir, 'GT_{}.png'.format(n)))
 
-                    metadata = MetadataCatalog.get(self._dataset_name[0])
+            viz = Visualizer(ori_img, metadata)
+            viz.draw_instance_predictions(self._results["instances"][n]).save(
+                os.path.join(self._output_dir, 'pred_{}.png'.format(n)))
 
-                    viz = Visualizer(img, metadata)
-                    viz.draw_dataset_dict(results["groundtruth"][n]).save(
-                        os.path.join(self._output_dir, 'GT_{}.png'.format(n)))
-
-                    viz = Visualizer(img, metadata)
-                    viz.draw_instance_predictions(results["instances"][n]).save(
-                        os.path.join(self._output_dir, 'pred_{}.png'.format(n)))
-
-                # assert isinstance(
-                #     results, dict
-                # ), "Eval function must return a dict. Got {} instead.".format(results)
-                #
-                # flattened_results = flatten_results_dict(results)
-                # for k, v in flattened_results.items():
-                #     try:
-                #         v = float(v)
-                #     except Exception:
-                #         raise ValueError(
-                #             "[EvalHook] eval_function should return a nested dict of float. "
-                #             "Got '{}: {}' instead.".format(k, v)
-                #         )
-                # self.trainer.storage.put_scalars(**flattened_results, smoothing_hint=False)
-
-            # Evaluation may take different time among workers.
-            # A barrier make them start the next iteration together.
-            comm.synchronize()
+        self._results = {}
 
 
 class VizdomVisualizer:
