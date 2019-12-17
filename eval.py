@@ -7,7 +7,6 @@ import visdom
 import numpy as np
 from subprocess import Popen, PIPE
 from collections import OrderedDict
-from skimage.exposure import rescale_intensity
 
 import detectron2.utils.comm as comm
 from detectron2.engine import HookBase
@@ -99,13 +98,6 @@ class GenericEvaluator(DatasetEvaluator):
         self._results['groundtruth'] = [self._predictions[0]['groundtruth']]
 
         for n in range(min(len(self._results['groundtruth']), 10)):
-            #img = np.transpose(self._results["image"][n], (1, 2, 0))
-            #img = np.repeat(img, 3, axis=-1)
-
-            # img = img * (14.1921/255) + (91.4962/255)
-            # img = img * 255
-            #img = rescale_intensity(img, out_range=(0, 255))
-
             ori_img = self._results["ori_image"][n]
             img = self._results["image"][n]
 
