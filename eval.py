@@ -50,7 +50,7 @@ class GenericEvaluator(DatasetEvaluator):
 
     def process(self, inputs, outputs):
         for input, output in zip(inputs, outputs):
-            prediction = {"image_id": input["image_id"], "image": input["image"], 'groundtruth':input}
+            prediction = {"image_id": input["image_id"], "ori_image": input["ori_image"], 'groundtruth':input}
 
             # TODO this is ugly
             if "instances" in output:
@@ -94,17 +94,20 @@ class GenericEvaluator(DatasetEvaluator):
 
     def _eval_predictions(self, task):
         self._results['image_id'] = [self._predictions[0]['image_id']]
-        self._results['image'] = [self._predictions[0]['image']]
+        self._results['ori_image'] = [self._predictions[0]['ori_image']]
         self._results['instances'] = [self._predictions[0]['instances']]
         self._results['groundtruth'] = [self._predictions[0]['groundtruth']]
 
         for n in range(min(len(self._results['groundtruth']), 10)):
-            img = np.transpose(self._results["image"][n], (1, 2, 0))
+            #img = np.transpose(self._results["image"][n], (1, 2, 0))
             #img = np.repeat(img, 3, axis=-1)
 
-            img = img * (14.1921/255) + (91.4962/255)
-            img = img * 255
+            # img = img * (14.1921/255) + (91.4962/255)
+            # img = img * 255
             #img = rescale_intensity(img, out_range=(0, 255))
+
+            ori_img = self._results["ori_image"][n]
+            img = self._results["image"][n]
 
             metadata = MetadataCatalog.get(self._dataset_name)
 
@@ -112,7 +115,7 @@ class GenericEvaluator(DatasetEvaluator):
             viz.draw_dataset_dict(self._results["groundtruth"][n]).save(
                 os.path.join(self._output_dir, 'GT_{}.png'.format(n)))
 
-            viz = Visualizer(img, metadata)
+            viz = Visualizer(ori_img, metadata)
             viz.draw_instance_predictions(self._results["instances"][n]).save(
                 os.path.join(self._output_dir, 'pred_{}.png'.format(n)))
 
