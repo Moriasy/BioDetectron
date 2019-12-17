@@ -49,7 +49,7 @@ class GenericEvaluator(DatasetEvaluator):
 
     def process(self, inputs, outputs):
         for input, output in zip(inputs, outputs):
-            prediction = {"image_id": input["image_id"], "ori_image": input["ori_image"], 'groundtruth':input}
+            prediction = {"image_id": input["image_id"], "image": input["image"], "ori_image": input["ori_image"], 'groundtruth':input}
 
             # TODO this is ugly
             if "instances" in output:
@@ -88,31 +88,26 @@ class GenericEvaluator(DatasetEvaluator):
 
 
     def _eval_box_proposals(self):
-        print('Add proposal eval!!!')
+        self._logger.warning("[_eval_box_proposals] not implemented.")
         return
 
     def _eval_predictions(self, task):
-        self._results['image_id'] = [self._predictions[0]['image_id']]
-        self._results['ori_image'] = [self._predictions[0]['ori_image']]
-        self._results['instances'] = [self._predictions[0]['instances']]
-        self._results['groundtruth'] = [self._predictions[0]['groundtruth']]
-
-        for n in range(min(len(self._results['groundtruth']), 10)):
-            ori_img = self._results["ori_image"][n]
-            img = self._results["image"][n]
+        for n in range(min(len(self._predictions), 10)):
+            ori_img = self._predictions[n]["ori_image"]
+            img = np.transpose(self._predictions[n]["image"], (1, 2, 0))
 
             metadata = MetadataCatalog.get(self._dataset_name)
 
             viz = Visualizer(img, metadata)
-            viz.draw_dataset_dict(self._results["groundtruth"][n]).save(
+            viz.draw_dataset_dict(self._predictions[n]["groundtruth"]).save(
                 os.path.join(self._output_dir, 'GT_{}.png'.format(n)))
 
             viz = Visualizer(ori_img, metadata)
-            viz.draw_instance_predictions(self._results["instances"][n]).save(
+            viz.draw_instance_predictions(self._predictions[n]["instances"]).save(
                 os.path.join(self._output_dir, 'pred_{}.png'.format(n)))
 
         self._results = {}
-
+        return
 
 class VizdomVisualizer:
     """
