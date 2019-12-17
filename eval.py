@@ -49,7 +49,7 @@ class GenericEvaluator(DatasetEvaluator):
 
     def process(self, inputs, outputs):
         for input, output in zip(inputs, outputs):
-            prediction = {"image_id": input["image_id"], "image": input["image"], "ori_image": input["ori_image"], 'groundtruth':input}
+            prediction = {'groundtruth':input["groundtruth"]}
 
             # TODO this is ugly
             if "instances" in output:
@@ -72,12 +72,6 @@ class GenericEvaluator(DatasetEvaluator):
             self._logger.warning("[GenericEvaluator] Did not receive valid predictions.")
             return {}
 
-        # if self._output_dir:
-        #     PathManager.mkdirs(self._output_dir)
-        #     file_path = os.path.join(self._output_dir, "instances_predictions.pth")
-        #     with PathManager.open(file_path, "wb") as f:
-        #         torch.save(self._predictions, f)
-
         self._results = OrderedDict()
         if "proposals" in self._predictions[0]:
             self._eval_box_proposals()
@@ -93,20 +87,18 @@ class GenericEvaluator(DatasetEvaluator):
 
     def _eval_predictions(self, task):
         for n in range(min(len(self._predictions), 10)):
-            ori_img = self._predictions[n]["ori_image"]
-            img = np.transpose(self._predictions[n]["image"], (1, 2, 0))
-
             metadata = MetadataCatalog.get(self._dataset_name)
 
-            viz = Visualizer(img, metadata)
+            image = self._predictions[n]["groundtruth"]["image"]
+
+            viz = Visualizer(image, metadata)
             viz.draw_dataset_dict(self._predictions[n]["groundtruth"]).save(
                 os.path.join(self._output_dir, 'GT_{}.png'.format(n)))
 
-            viz = Visualizer(ori_img, metadata)
+            viz = Visualizer(image, metadata)
             viz.draw_instance_predictions(self._predictions[n]["instances"]).save(
                 os.path.join(self._output_dir, 'pred_{}.png'.format(n)))
 
-        self._results = {}
         return
 
 class VizdomVisualizer:
