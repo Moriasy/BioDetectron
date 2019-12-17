@@ -106,14 +106,6 @@ class SKImageLoader(DatasetMapper):
         # but not efficient on large generic data structures due to the use of pickle & mp.Queue.
         # Therefore it's important to use torch.Tensor.
 
-        # print(image.shape)
-        # image = image[:,:,0]
-        #image = np.expand_dims(image, axis=-1)
-        image = image.astype(np.float32)
-        image = rescale_intensity(image)
-        image = (image-(91.4962/255)) / (14.1921/255)
-        #image = np.repeat(image, 3, axis=-1)
-
         dataset_dict["image"] = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
 
         #dataset_dict["image"] = torch.as_tensor(image)
