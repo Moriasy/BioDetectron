@@ -14,6 +14,24 @@ from detectron2.data import transforms as T
 from detectron2.evaluation import DatasetEvaluator
 
 
+class DictGetter:
+    def __init__(self, train_path=None, val_path=None):
+        self.train_path = train_path
+        self.val_path = val_path
+
+    def get_train_dicts(self):
+        if train_path:
+            return get_csv(self.train_path)
+        else:
+            raise ValueError("Training data path is not set!")
+
+    def get_val_paths(self):
+        if val_path:
+            return get_csv(self.val_path)
+        else:
+            raise ValueError("Validation data path is not set!")
+
+
 def get_csv(root_dir):
     imglist = glob(os.path.join(root_dir, '*.jpg')) + \
                     glob(os.path.join(root_dir, '*.tif')) + \
