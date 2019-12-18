@@ -13,6 +13,7 @@ from detectron2.evaluation import DatasetEvaluators
 from data import SKImageLoader, DictGetter
 from eval import GenericEvaluator
 
+#Test
 
 class Trainer(DefaultTrainer):
     @classmethod
