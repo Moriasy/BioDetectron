@@ -7,7 +7,7 @@ from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.data import build_detection_test_loader, build_detection_train_loader, DatasetMapper
 from detectron2.data.datasets import load_coco_json, register_coco_instances
 from detectron2.utils.logger import setup_logger
-from detectron2.engine import default_argument_parser, DefaultTrainer
+from detectron2.engine import default_argument_parser, DefaultTrainer, launch, default_setup
 from detectron2.evaluation import DatasetEvaluators
 
 from data import SKImageLoader, DictGetter
@@ -43,52 +43,55 @@ def setup(args):
     cfg.TEST.EVAL_PERIOD = 100
     cfg.OUTPUT_DIR = '/scratch/bunk/osman/logs'
     cfg.MODEL.BACKBONE.FREEZE_AT = 0
-    cfg.SOLVER.BASE_LR = 0.01
+    cfg.SOLVER.BASE_LR = 0.001
     #cfg.SOLVER.WARMUP_ITERS = 10
 
     # WEN
-    cfg.MODEL.PIXEL_MEAN = [36.51, 36.51, 36.51]
-    cfg.MODEL.PIXEL_STD = [30.87, 30.87, 30.87]
+    if cfg.DATASETS.TRAIN == "wen":
+        cfg.MODEL.PIXEL_MEAN = [36.51, 36.51, 36.51]
+        cfg.MODEL.PIXEL_STD = [30.87, 30.87, 30.87]
 
     # OSMAN
-    cfg.MODEL.PIXEL_MEAN = [91.50, 91.50, 91.50]
-    cfg.MODEL.PIXEL_STD = [14.19, 14.19, 14.19]
+    if cfg.DATASETS.TRAIN == "osman":
+        cfg.MODEL.PIXEL_MEAN = [91.50, 91.50, 91.50]
+        cfg.MODEL.PIXEL_STD = [14.19, 14.19, 14.19]
 
     date_time = datetime.now().strftime("%m%d%y_%H%M%S")
     cfg.OUTPUT_DIR = os.path.join(cfg.OUTPUT_DIR, date_time)
 
-    # cfg.freeze()
-    # default_setup(cfg, args)
-
     copy_code(cfg.OUTPUT_DIR)
+
+    ####### OSMAN DATA
+    if  "osman" in cfg.DATASETS.TRAIN:
+        dict_getter = DictGetter(train_path='/scratch/bunk/osman/mating_cells/COCO/DIR/train',
+                                 val_path='/scratch/bunk/osman/mating_cells/COCO/DIR/val')
+
+        DatasetCatalog.register("osman", dict_getter.get_train_dicts)
+        MetadataCatalog.get("osman").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
+
+        DatasetCatalog.register("osman_val", dict_getter.get_val_dicts)
+        MetadataCatalog.get("osman_val").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
+
+    ####### WEN DATA
+    elif "wen" in cfg.DATASETS.TRAIN:
+        dict_getter = DictGetter(train_path='/scratch/bunk/wen/COCO/DIR/train2014',
+                                 val_path='/scratch/bunk/wen/COCO/DIR/val2014')
+
+        DatasetCatalog.register("wen", dict_getter.get_train_dicts)
+        MetadataCatalog.get("wen").thing_classes = ["G1", "G2", "ms", "ears", "uncategorized", "ls", "multinuc", "mito"]
+
+        DatasetCatalog.register("wen_val", dict_getter.get_val_dicts)
+        MetadataCatalog.get("wen_val").thing_classes = ["G1", "G2", "ms", "ears", "uncategorized", "ls", "multinuc", "mito"]
+
+
+    cfg.freeze()
+    default_setup(cfg, args)
 
     setup_logger(output=cfg.OUTPUT_DIR, distributed_rank=comm.get_rank(), name="detectron")
     return cfg
 
 
 def main(args):
-    ####### OSMAN DATA
-
-    dict_getter = DictGetter(train_path='/scratch/bunk/osman/mating_cells/COCO/DIR/train',
-                             val_path='/scratch/bunk/osman/mating_cells/COCO/DIR/val')
-
-    DatasetCatalog.register("osman", dict_getter.get_train_dicts)
-    MetadataCatalog.get("osman").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
-
-    DatasetCatalog.register("osman_val", dict_getter.get_val_dicts)
-    MetadataCatalog.get("osman_val").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
-
-    ####### WEN DATA
-
-    # dict_getter = DictGetter(train_path='/scratch/bunk/wen/COCO/DIR/train2014',
-    #                          val_path='/scratch/bunk/wen/COCO/DIR/val2014')
-
-    DatasetCatalog.register("wen", get_train_dicts)
-    MetadataCatalog.get("wen").thing_classes = ["G1", "G2", "ms", "ears", "uncategorized", "ls", "multinuc", "mito"]
-
-    DatasetCatalog.register("wen_val", get_val_dicts)
-    MetadataCatalog.get("wen_val").thing_classes = ["G1", "G2", "ms", "ears", "uncategorized", "ls", "multinuc", "mito"]
-
     cfg = setup(args)
 
     # if args.eval_only:
@@ -110,4 +113,10 @@ def main(args):
 if __name__ == "__main__":
     args = default_argument_parser().parse_args()
     print("Command Line Args:", args)
-    main(args)
+    launch(main,
+           num_gpus_per_machine=args.num_gpus,
+           num_machines=args.num_machines,
+           machine_rank=args.machine_rank,
+           dist_url=args.dist_url,
+           args=(args, ),
+           )
