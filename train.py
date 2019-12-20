@@ -12,6 +12,7 @@ from detectron2.evaluation import DatasetEvaluators
 
 from data import SKImageLoader, DictGetter
 from eval import GenericEvaluator
+from utils import copy_code
 
 
 class Trainer(DefaultTrainer):
@@ -57,6 +58,8 @@ def setup(args):
 
     date_time = datetime.now().strftime("%m%d%y_%H%M%S")
     cfg.OUTPUT_DIR = os.path.join(cfg.OUTPUT_DIR, date_time)
+
+    copy_code(cfg.OUTPUT_DIR)
 
     ####### OSMAN DATA
     if  "osman" in cfg.DATASETS.TRAIN:
