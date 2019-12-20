@@ -14,7 +14,6 @@ from data import SKImageLoader, DictGetter
 from eval import GenericEvaluator
 from utils import copy_code
 
-os.environ = "2"
 
 class Trainer(DefaultTrainer):
     @classmethod
