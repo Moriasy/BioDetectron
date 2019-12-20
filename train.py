@@ -12,8 +12,9 @@ from detectron2.evaluation import DatasetEvaluators
 
 from data import SKImageLoader, DictGetter
 from eval import GenericEvaluator
+from utils import copy_code
 
-#Test
+os.environ = "2"
 
 class Trainer(DefaultTrainer):
     @classmethod
@@ -59,6 +60,8 @@ def setup(args):
 
     # cfg.freeze()
     # default_setup(cfg, args)
+
+    copy_code(cfg.OUTPUT_DIR)
 
     setup_logger(output=cfg.OUTPUT_DIR, distributed_rank=comm.get_rank(), name="detectron")
     return cfg
