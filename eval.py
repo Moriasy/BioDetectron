@@ -86,7 +86,7 @@ class GenericEvaluator(DatasetEvaluator):
         return
 
     def _eval_predictions(self, task):
-        for n in range(min(len(self._predictions), 10)):
+        for n in range(len(self._predictions)):
             metadata = MetadataCatalog.get(self._dataset_name)
 
             image = self._predictions[n]["groundtruth"]["image"]
@@ -100,6 +100,7 @@ class GenericEvaluator(DatasetEvaluator):
                 os.path.join(self._output_dir, 'pred_{}.png'.format(n)))
 
         return
+
 
 class VizdomVisualizer:
     """

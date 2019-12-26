@@ -1,14 +1,16 @@
 import os
+from itertools import combinations
 from datetime import datetime
 
 import detectron2.utils.comm as comm
 from detectron2.config import get_cfg
-from detectron2.data import DatasetCatalog, MetadataCatalog
-from detectron2.data import build_detection_test_loader, build_detection_train_loader, DatasetMapper
-from detectron2.data.datasets import load_coco_json, register_coco_instances
 from detectron2.utils.logger import setup_logger
-from detectron2.engine import default_argument_parser, DefaultTrainer, launch, default_setup
 from detectron2.evaluation import DatasetEvaluators
+from detectron2.checkpoint import DetectionCheckpointer
+from detectron2.data import DatasetCatalog, MetadataCatalog
+from detectron2.data.datasets import load_coco_json, register_coco_instances
+from detectron2.data import build_detection_test_loader, build_detection_train_loader, DatasetMapper
+from detectron2.engine import default_argument_parser, DefaultTrainer, DefaultPredictor, launch, default_setup
 
 from data import SKImageLoader, DictGetter
 from eval import GenericEvaluator
@@ -29,37 +31,93 @@ class Trainer(DefaultTrainer):
         return build_detection_train_loader(cfg, mapper=SKImageLoader(cfg, True))
 
 
+class BboxPredictor():
+    def __init__(self, cfg, weights):
+        self.cfg = get_cfg()
+        self.cfg.merge_from_file(cfg)
+        self.cfg.MODEL.WEIGHTS = weights
+
+        self.predictor = DefaultPredictor(self.cfg)
+
+        ### MUST ADD METADATA SOMEHOW!!!
+
+    def detect_one_image(self, image):
+        instances = self.predictor(image)["instances"]
+        boxes = list(instances.pred_boxes)
+
+        boxes = [tuple(box.cpu().numpy()) for box in boxes]
+
+        print(boxes)
+
+        boxes = self.check_iou(boxes)
+
+        return boxes
+
+    @staticmethod
+    def bb_intersection_over_union(boxA, boxB):
+        # from https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
+
+        # determine the (x, y)-coordinates of the intersection rectangle
+        xA = max(boxA[0], boxB[0])
+        yA = max(boxA[1], boxB[1])
+        xB = min(boxA[2], boxB[2])
+        yB = min(boxA[3], boxB[3])
+
+        # compute the area of intersection rectangle
+        interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+
+        # compute the area of both the prediction and ground-truth
+        # rectangles
+        boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
+        boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+
+        # compute the intersection over union by taking the intersection
+        # area and dividing it by the sum of prediction + ground-truth
+        # areas - the interesection area
+        iou = interArea / float(boxAArea + boxBArea - interArea)
+
+        # return the intersection over union value
+        return iou
+
+    def check_iou(self, results):
+        if len(results) <= 1:
+            return results
+
+        while True:
+            new_results = []
+            overlap_results = []
+            for a,b in combinations(results, 2):
+                iou = self.bb_intersection_over_union(a, b)
+
+                if iou > 0.33:
+                    overlap_results.append(b)
+                    break
+
+
+            for result in results:
+                if result not in overlap_results:
+                    new_results.append(result)
+
+            #print(len(new_results), len(overlap_results))
+            if len(new_results) == len(results) or len(new_results) <= 1:
+                break
+
+            results = new_results
+
+        return new_results
+
+
 def setup(args):
     cfg = get_cfg()
-    cfg.merge_from_file('./res50.yaml')
-    cfg.DATASETS.TRAIN = ("osman",)
-    cfg.DATASETS.TEST = ("osman_val",)
-    cfg.DATALOADER.NUM_WORKERS = 4
-    #cfg.INPUT.MAX_SIZE_TRAIN = 1333
-    cfg.SOLVER.CHECKPOINT_PERIOD = 1000
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4
-    cfg.MODEL.RETINANET.NUM_CLASSES = 4
-    cfg.TEST.EVAL_PERIOD = 100
-    cfg.OUTPUT_DIR = '/scratch/bunk/osman/logs'
-    cfg.MODEL.BACKBONE.FREEZE_AT = 0
-    cfg.SOLVER.BASE_LR = 0.001
-    #cfg.SOLVER.WARMUP_ITERS = 10
+    cfg.merge_from_file('./wings.yaml')
 
-    # WEN
-    if cfg.DATASETS.TRAIN == "wen":
-        cfg.MODEL.PIXEL_MEAN = [36.51, 36.51, 36.51]
-        cfg.MODEL.PIXEL_STD = [30.87, 30.87, 30.87]
-
-    # OSMAN
-    if cfg.DATASETS.TRAIN == "osman":
-        cfg.MODEL.PIXEL_MEAN = [91.50, 91.50, 91.50]
-        cfg.MODEL.PIXEL_STD = [14.19, 14.19, 14.19]
+    cfg.OUTPUT_DIR = '/scratch/bunk/logs'
 
     date_time = datetime.now().strftime("%m%d%y_%H%M%S")
-    cfg.OUTPUT_DIR = os.path.join(cfg.OUTPUT_DIR, date_time)
+    cfg.OUTPUT_DIR = os.path.join(cfg.OUTPUT_DIR, cfg.DATASETS.TRAIN[0], date_time)
 
     ####### OSMAN DATA
-    if  "osman" in cfg.DATASETS.TRAIN:
+    if "osman" in cfg.DATASETS.TRAIN:
         dict_getter = DictGetter(train_path='/scratch/bunk/osman/mating_cells/COCO/DIR/train',
                                  val_path='/scratch/bunk/osman/mating_cells/COCO/DIR/val')
 
@@ -80,6 +138,16 @@ def setup(args):
         DatasetCatalog.register("wen_val", dict_getter.get_val_dicts)
         MetadataCatalog.get("wen_val").thing_classes = ["G1", "G2", "ms", "ears", "uncategorized", "ls", "multinuc", "mito"]
 
+    ####### WEN DATA
+    elif "wings" in cfg.DATASETS.TRAIN:
+        dict_getter = DictGetter(train_path='/scratch/bunk/wings/images/COCO/DIR/train2014',
+                                 val_path='/scratch/bunk/wings/images/COCO/DIR/val2014')
+
+        DatasetCatalog.register("wings", dict_getter.get_train_dicts)
+        MetadataCatalog.get("wings").thing_classes = ["good", "broken", "unusable"]
+
+        DatasetCatalog.register("wings_val", dict_getter.get_val_dicts)
+        MetadataCatalog.get("wings_val").thing_classes = ["good", "broken", "unusable"]
 
     cfg.freeze()
     default_setup(cfg, args)
@@ -87,19 +155,18 @@ def setup(args):
     setup_logger(output=cfg.OUTPUT_DIR, distributed_rank=comm.get_rank(), name="detectron")
     return cfg
 
-
 def main(args):
     cfg = setup(args)
 
-    # if args.eval_only:
-    #     model = Trainer.build_model(cfg)
-    #     DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
-    #         cfg.MODEL.WEIGHTS, resume=args.resume
-    #     )
-    #     res = Trainer.test(cfg, model)
-    #     if comm.is_main_process():
-    #         verify_results(cfg, res)
-    #     return res
+    if args.eval_only:
+        model = Trainer.build_model(cfg)
+        DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
+            cfg.MODEL.WEIGHTS, resume=args.resume
+        )
+        res = Trainer.test(cfg, model)
+        # if comm.is_main_process():
+        #     verify_results(cfg, res)
+        return res
 
     trainer = Trainer(cfg)
     trainer.resume_or_load()
