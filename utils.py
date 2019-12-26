@@ -16,7 +16,6 @@ def include_patterns(*patterns):
 
 def copy_code(path):
     path = os.path.join(path, 'src')
-    os.mkdir(path)
     py_files_path = os.path.dirname(os.path.realpath(__file__))
     copytree(py_files_path, path, ignore=include_patterns('*.py'))
 

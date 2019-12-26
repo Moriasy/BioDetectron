@@ -45,12 +45,12 @@ class BboxPredictor():
     def detect_one_image(self, image):
         instances = self.predictor(image)["instances"]
         boxes = list(instances.pred_boxes)
-
         boxes = [tuple(box.cpu().numpy()) for box in boxes]
 
-        print(boxes)
+        scores = list(instances.pred_scores)
+        scores = [tuple(score.cpu().numpy()) for score in scores]
 
-        boxes = self.check_iou(boxes)
+        boxes = self.check_iou(boxes, scores)
 
         return boxes
 
@@ -80,44 +80,50 @@ class BboxPredictor():
         # return the intersection over union value
         return iou
 
-    def check_iou(self, results):
-        if len(results) <= 1:
-            return results
+    def check_iou(self, boxes, scores):
+        if len(boxes) <= 1:
+            return boxes
 
         while True:
-            new_results = []
-            overlap_results = []
-            for a,b in combinations(results, 2):
-                iou = self.bb_intersection_over_union(a, b)
+            new_boxes = []
+            new_scores = []
+            overlap_boxes = []
+
+            indices = list((i,j) for ((i,_),(j,_)) in itertools.combinations(enumerate(boxes), 2))
+
+            for a,b in indices:
+                iou = self.bb_intersection_over_union(boxes[a], boxes[b])
 
                 if iou > 0.33:
-                    overlap_results.append(b)
+                    if scores[a] > scores[b]:
+                        overlap_boxes.append(b)
+                    else:
+                        overlap_boxes.append(a)
                     break
 
 
-            for result in results:
-                if result not in overlap_results:
-                    new_results.append(result)
+            for idx in range(len(boxes)):
+                if idx not in overlap_boxes:
+                    new_boxes.append(boxes[idx])
+                    new_scores.append(scores[idx])
 
-            #print(len(new_results), len(overlap_results))
-            if len(new_results) == len(results) or len(new_results) <= 1:
+            if len(new_boxes) == len(boxes) or len(new_boxes) <= 1:
                 break
 
-            results = new_results
+            boxes = new_boxes
 
         return new_results
 
 
 def setup(args):
     cfg = get_cfg()
-    cfg.merge_from_file('./wings.yaml')
-
-    cfg.OUTPUT_DIR = '/scratch/bunk/logs'
+    cfg.merge_from_file(args.config_file)
 
     date_time = datetime.now().strftime("%m%d%y_%H%M%S")
     cfg.OUTPUT_DIR = os.path.join(cfg.OUTPUT_DIR, cfg.DATASETS.TRAIN[0], date_time)
 
-    copy_code(cfg.OUTPUT_DIR)
+    if comm.get_rank() == 0:
+        copy_code(cfg.OUTPUT_DIR)
 
     ####### OSMAN DATA
     if "osman" in cfg.DATASETS.TRAIN:
