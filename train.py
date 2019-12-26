@@ -44,11 +44,12 @@ class BboxPredictor():
 
     def detect_one_image(self, image):
         instances = self.predictor(image)["instances"]
+
         boxes = list(instances.pred_boxes)
         boxes = [tuple(box.cpu().numpy()) for box in boxes]
 
-        scores = list(instances.pred_scores)
-        scores = [tuple(score.cpu().numpy()) for score in scores]
+        scores = list(instances.scores)
+        scores = [score.cpu().numpy() for score in scores]
 
         boxes = self.check_iou(boxes, scores)
 
@@ -89,12 +90,12 @@ class BboxPredictor():
             new_scores = []
             overlap_boxes = []
 
-            indices = list((i,j) for ((i,_),(j,_)) in itertools.combinations(enumerate(boxes), 2))
+            indices = list((i,j) for ((i,_),(j,_)) in combinations(enumerate(boxes), 2))
 
             for a,b in indices:
                 iou = self.bb_intersection_over_union(boxes[a], boxes[b])
 
-                if iou > 0.33:
+                if iou > 0.5:
                     if scores[a] > scores[b]:
                         overlap_boxes.append(b)
                     else:
@@ -112,7 +113,7 @@ class BboxPredictor():
 
             boxes = new_boxes
 
-        return new_results
+        return new_boxes
 
 
 def setup(args):
