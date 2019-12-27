@@ -9,30 +9,31 @@ from skimage.io import imread
 from skimage.exposure import rescale_intensity
 
 from detectron2.structures import BoxMode
-from detectron2.data import DatasetMapper, detection_utils as utils
+from detectron2.data import DatasetMapper, MetadataCatalog, detection_utils as utils
 from detectron2.data import transforms as T
 from detectron2.evaluation import DatasetEvaluator
 
 
 class DictGetter:
-    def __init__(self, train_path=None, val_path=None):
+    def __init__(self, dataset, train_path=None, val_path=None):
+        self.dataset = dataset
         self.train_path = train_path
         self.val_path = val_path
 
     def get_train_dicts(self):
         if self.train_path:
-            return get_csv(self.train_path)
+            return get_csv(self.train_path, self.dataset)
         else:
             raise ValueError("Training data path is not set!")
 
     def get_val_dicts(self):
         if self.val_path:
-            return get_csv(self.val_path)
+            return get_csv(self.val_path, self.dataset)
         else:
             raise ValueError("Validation data path is not set!")
 
 
-def get_csv(root_dir):
+def get_csv(root_dir, dataset):
     imglist = glob(os.path.join(root_dir, '*.jpg')) + \
                     glob(os.path.join(root_dir, '*.tif')) + \
                     glob(os.path.join(root_dir, '*.png'))
@@ -51,13 +52,15 @@ def get_csv(root_dir):
 
         targets = pd.read_csv(imglist[idx].replace('jpg', 'csv').replace('tif', 'csv').replace('png', 'csv'))
 
+        mapping = MetadataCatalog.get(dataset).thing_dataset_id_to_contiguous_id
+
         objs = []
         for row in targets.itertuples():
             obj = {
                 "bbox": [row.x1, row.y1, row.x2, row.y2],
                 "bbox_mode": BoxMode.XYXY_ABS,
                 "segmentation": [],
-                "category_id": row.category_id,
+                "category_id":  mapping[row.category_id],
                 "iscrowd": 0
             }
             objs.append(obj)

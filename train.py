@@ -128,7 +128,7 @@ def setup(args):
 
     ####### OSMAN DATA
     if "osman" in cfg.DATASETS.TRAIN:
-        dict_getter = DictGetter(train_path='/scratch/bunk/osman/mating_cells/COCO/DIR/train',
+        dict_getter = DictGetter("osman", train_path='/scratch/bunk/osman/mating_cells/COCO/DIR/train',
                                  val_path='/scratch/bunk/osman/mating_cells/COCO/DIR/val')
 
         DatasetCatalog.register("osman", dict_getter.get_train_dicts)
@@ -141,7 +141,7 @@ def setup(args):
 
     ####### WEN DATA
     elif "wen" in cfg.DATASETS.TRAIN:
-        dict_getter = DictGetter(train_path='/scratch/bunk/wen/COCO/DIR/train2014',
+        dict_getter = DictGetter("wen", train_path='/scratch/bunk/wen/COCO/DIR/train2014',
                                  val_path='/scratch/bunk/wen/COCO/DIR/val2014')
 
         DatasetCatalog.register("wen", dict_getter.get_train_dicts)
@@ -154,7 +154,7 @@ def setup(args):
 
     ####### WEN DATA
     elif "wings" in cfg.DATASETS.TRAIN:
-        dict_getter = DictGetter(train_path='/scratch/bunk/wings/images/COCO/DIR/train2014',
+        dict_getter = DictGetter("wings", train_path='/scratch/bunk/wings/images/COCO/DIR/train2014',
                                  val_path='/scratch/bunk/wings/images/COCO/DIR/val2014')
 
         DatasetCatalog.register("wings", dict_getter.get_train_dicts)
@@ -163,7 +163,7 @@ def setup(args):
 
         DatasetCatalog.register("wings_val", dict_getter.get_val_dicts)
         MetadataCatalog.get("wings_val").thing_classes = ["wing"]
-        MetadataCatalog.get("wings_val").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:0}
+        #MetadataCatalog.get("wings_val").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:0}
 
     cfg.freeze()
     default_setup(cfg, args)
