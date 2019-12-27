@@ -133,9 +133,11 @@ def setup(args):
 
         DatasetCatalog.register("osman", dict_getter.get_train_dicts)
         MetadataCatalog.get("osman").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
+        MetadataCatalog.get("osman").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3}
 
         DatasetCatalog.register("osman_val", dict_getter.get_val_dicts)
         MetadataCatalog.get("osman_val").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
+        MetadataCatalog.get("osman_val").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2,}
 
     ####### WEN DATA
     elif "wen" in cfg.DATASETS.TRAIN:
@@ -144,9 +146,11 @@ def setup(args):
 
         DatasetCatalog.register("wen", dict_getter.get_train_dicts)
         MetadataCatalog.get("wen").thing_classes = ["G1", "G2", "ms", "ears", "uncategorized", "ls", "multinuc", "mito"]
+        MetadataCatalog.get("wen").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3, 5:4, 6:5, 7:6, 8:7}
 
         DatasetCatalog.register("wen_val", dict_getter.get_val_dicts)
         MetadataCatalog.get("wen_val").thing_classes = ["G1", "G2", "ms", "ears", "uncategorized", "ls", "multinuc", "mito"]
+        MetadataCatalog.get("wen_val").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3, 5:4, 6:5, 7:6, 8:7}
 
     ####### WEN DATA
     elif "wings" in cfg.DATASETS.TRAIN:
@@ -154,10 +158,12 @@ def setup(args):
                                  val_path='/scratch/bunk/wings/images/COCO/DIR/val2014')
 
         DatasetCatalog.register("wings", dict_getter.get_train_dicts)
-        MetadataCatalog.get("wings").thing_classes = ["good", "broken", "unusable"]
+        MetadataCatalog.get("wings").thing_classes = ["wing"]
+        MetadataCatalog.get("wings").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:0}
 
         DatasetCatalog.register("wings_val", dict_getter.get_val_dicts)
-        MetadataCatalog.get("wings_val").thing_classes = ["good", "broken", "unusable"]
+        MetadataCatalog.get("wings_val").thing_classes = ["wing"]
+        MetadataCatalog.get("wings_val").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:0}
 
     cfg.freeze()
     default_setup(cfg, args)

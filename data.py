@@ -57,7 +57,7 @@ def get_csv(root_dir):
                 "bbox": [row.x1, row.y1, row.x2, row.y2],
                 "bbox_mode": BoxMode.XYXY_ABS,
                 "segmentation": [],
-                "category_id": row.category_id - 1,
+                "category_id": row.category_id,
                 "iscrowd": 0
             }
             objs.append(obj)
