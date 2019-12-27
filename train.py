@@ -163,7 +163,7 @@ def setup(args):
 
         DatasetCatalog.register("wings_val", dict_getter.get_val_dicts)
         MetadataCatalog.get("wings_val").thing_classes = ["wing"]
-        #MetadataCatalog.get("wings_val").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:0}
+        MetadataCatalog.get("wings_val").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:0}
 
     cfg.freeze()
     default_setup(cfg, args)

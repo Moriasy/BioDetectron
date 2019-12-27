@@ -52,15 +52,20 @@ def get_csv(root_dir, dataset):
 
         targets = pd.read_csv(imglist[idx].replace('jpg', 'csv').replace('tif', 'csv').replace('png', 'csv'))
 
-        mapping = MetadataCatalog.get(dataset).thing_dataset_id_to_contiguous_id
+        try:
+            mapping = MetadataCatalog.get(dataset).thing_dataset_id_to_contiguous_id
+        except:
+            mapping = None
 
         objs = []
         for row in targets.itertuples():
+            category_id = mapping[row.category_id] if mapping is not None else row.category_id
+
             obj = {
                 "bbox": [row.x1, row.y1, row.x2, row.y2],
                 "bbox_mode": BoxMode.XYXY_ABS,
                 "segmentation": [],
-                "category_id":  mapping[row.category_id],
+                "category_id":  category_id,
                 "iscrowd": 0
             }
             objs.append(obj)
