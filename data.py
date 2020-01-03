@@ -220,6 +220,12 @@ class BoxDetectionLoader(DatasetMapper):
         # Define augmentations.
         seq = iaa.Sequential([
             iaa.Resize({"height": self.cfg.INPUT.MAX_SIZE_TRAIN, "width":"keep-aspect-ratio"}),
+            iaa.Fliplr(0.5),
+            iaa.Flipud(0.1),
+            iaa.Sometimes(0.25, iaa.Rot90(k=(0, 3))),
+            iaa.Sometimes(0.33, iaa.GammaContrast(gamma=(0.8, 1.2))),
+            iaa.Sometimes(0.5, iaa.Multiply(mul=(0.3, 2))),
+            iaa.Sometimes(0.33, iaa.GaussianBlur(sigma=(0.25, 1)))
         ])
 
         image, boxes = seq(image=image, bounding_boxes=boxes)
