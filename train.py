@@ -12,7 +12,7 @@ from detectron2.data.datasets import load_coco_json, register_coco_instances
 from detectron2.data import build_detection_test_loader, build_detection_train_loader, DatasetMapper
 from detectron2.engine import default_argument_parser, DefaultTrainer, DefaultPredictor, launch, default_setup
 
-from data import BoxDetectionLoader, SKImageLoader, DictGetter
+from data import BoxDetectionLoader, DictGetter
 from eval import GenericEvaluator
 from utils import copy_code
 
