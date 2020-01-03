@@ -7,7 +7,6 @@ from os.path import isdir, join
 from fnmatch import fnmatch, filter
 
 from pandas import DataFrame
-import pycocotools.coco as coco
 from pycocotools.coco import COCO
 
 
