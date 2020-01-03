@@ -12,7 +12,7 @@ from detectron2.data.datasets import load_coco_json, register_coco_instances
 from detectron2.data import build_detection_test_loader, build_detection_train_loader, DatasetMapper
 from detectron2.engine import default_argument_parser, DefaultTrainer, DefaultPredictor, launch, default_setup
 
-from data import SKImageLoader, DictGetter
+from data import BoxDetectionLoader, SKImageLoader, DictGetter
 from eval import GenericEvaluator
 from utils import copy_code
 
@@ -25,11 +25,11 @@ class Trainer(DefaultTrainer):
 
     @classmethod
     def build_test_loader(cls, cfg, dataset_name):
-        return build_detection_test_loader(cfg, dataset_name, mapper=SKImageLoader(cfg, False))
+        return build_detection_test_loader(cfg, dataset_name, mapper=BoxDetectionLoader(cfg, False))
 
     @classmethod
     def build_train_loader(cls, cfg):
-        return build_detection_train_loader(cfg, mapper=SKImageLoader(cfg, True))
+        return build_detection_train_loader(cfg, mapper=BoxDetectionLoader(cfg, True))
 
 
 class BboxPredictor():
