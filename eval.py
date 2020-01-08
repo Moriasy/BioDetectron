@@ -14,6 +14,8 @@ from detectron2.data import MetadataCatalog
 from detectron2.utils.visualizer import Visualizer
 from detectron2.evaluation import DatasetEvaluator
 
+from metrics import BoundingBox, BoundingBoxes, BBFormat, BBType, Evaluator as MetricEvaluator
+
 
 class GenericEvaluator(DatasetEvaluator):
     def __init__(self, dataset_name, cfg, output_dir, distributed=False):
@@ -36,7 +38,7 @@ class GenericEvaluator(DatasetEvaluator):
         Returns:
             tuple[str]: tasks that can be evaluated under the given configuration.
         """
-        tasks = ("bbox",)
+        tasks = ("AP",)
         if cfg.MODEL.MASK_ON:
             tasks = tasks + ("segm",)
         if cfg.MODEL.KEYPOINT_ON:
@@ -81,11 +83,48 @@ class GenericEvaluator(DatasetEvaluator):
         self._logger.warning("[_eval_box_proposals] not implemented.")
         return
 
-    def _eval_predictions(self, task):
-        for n in range(len(self._predictions)):
-            metadata = MetadataCatalog.get(self._dataset_name)
-            image = self._predictions[n]["groundtruth"]["image"]
+    def _eval_predictions(self, tasks):
+        if "AP" in tasks:
+            ap_scores = []
+            for n in range(len(self._predictions)):
+                boxes = BoundingBoxes()
 
-        # ADD EVALUATION SCORES!
+                for box_idx, box in enumerate(self._predictions[n]["groundtruth"]["instances"].get("gt_boxes")):
+                    bbox = BoundingBox(
+                        'eval_img',
+                        self._predictions[n]["groundtruth"]["instances"].get("gt_classes")[box_idx],
+                        box[0],
+                        box[1],
+                        box[2],
+                        box[3],
+                        format=BBFormat.XYX2Y2,
+                        bbType=BBType.GroundTruth)
 
+                    boxes.addBoundingBox(bbox)
+
+                for box_idx, box in enumerate(self._predictions[n]["instances"].get("pred_boxes")):
+                    bbox = BoundingBox(
+                        "eval_img",
+                        self._predictions[n]["instances"].get("pred_classes")[box_idx],
+                        box[0],
+                        box[1],
+                        box[2],
+                        box[3],
+                        bbType=BBType.Detected,
+                        format=BBFormat.XYX2Y2,
+                        classConfidence=self._predictions[n]["instances"].get("scores")[box_idx],
+                    )
+
+                    boxes.addBoundingBox(bbox)
+
+                metric_evaluator = MetricEvaluator()
+                results = metric_evaluator.GetPascalVOCMetrics(boxes)
+
+                ap_scores.append(results[0]["AP"])
+
+            mean_AP = np.mean(ap_scores)
+
+            self._results["AP"] = mean_AP
+
+        print(self._results["AP"])
         return

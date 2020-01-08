@@ -112,6 +112,7 @@ class BboxPredictor():
                 break
 
             boxes = new_boxes
+            scores = new_scores
 
         return new_boxes
 
