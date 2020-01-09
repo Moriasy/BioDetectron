@@ -1,6 +1,8 @@
 import os
 import errno
 import numpy as np
+from glob import glob
+from skimage.io import imread
 
 from shutil import copytree
 from os.path import isdir, join
@@ -35,6 +37,42 @@ def copy_code(path):
     py_files_path = os.path.dirname(os.path.realpath(__file__))
     copytree(py_files_path, path, ignore=include_patterns('*.py', '*.yaml'))
     remove_empty_dirs(path)
+
+
+def get_mean_std(folder):
+    imglist = glob(os.path.join(folder, '*.jpg')) + \
+              glob(os.path.join(folder, '*.tif')) + \
+              glob(os.path.join(folder, '*.png'))
+
+    mean = []
+    means = []
+
+    std = []
+    stds = []
+
+    for idx, path in enumerate(imglist):
+        image = imread(path)
+
+        if len(image.shape) == 2:
+            image = np.expand_dims(image, axis=-1)
+        if image.shape[-1] == 1:
+            image = np.repeat(image, 3, axis=-1)
+
+            for n in range(image.shape[-1]):
+                if idx == 0:
+                    means.append([])
+                    stds.append([])
+
+                img = image[:, :, n]
+
+                means[n].append(np.mean(img))
+                stds[n].append(np.std(img))
+
+    for n in range(image.shape[-1]):
+        mean.append(float(np.round(np.mean(means[n]), 2)))
+        std.append(float(np.round(np.mean(stds[n]), 2)))
+
+    return mean, std
 
 
 def coco2csv(dataDir, dataType, annFile, mask=False):
