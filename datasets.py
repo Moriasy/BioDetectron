@@ -97,9 +97,13 @@ class DictGetter:
 
 
 def register_custom_datasets():
+    path_dict = {}
+
     ####### OSMAN DATA
     dict_getter = DictGetter("osman", train_path='/scratch/bunk/osman/mating_cells/COCO/DIR/train',
                              val_path='/scratch/bunk/osman/mating_cells/COCO/DIR/val')
+
+    path_dict["osman"] = dict_getter.train_path
 
     DatasetCatalog.register("osman", dict_getter.get_train_dicts)
     MetadataCatalog.get("osman").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
@@ -113,6 +117,8 @@ def register_custom_datasets():
     dict_getter = DictGetter("wen", train_path='/scratch/bunk/wen/COCO/DIR/train2014',
                              val_path='/scratch/bunk/wen/COCO/DIR/val2014')
 
+    path_dict["wen"] = dict_getter.train_path
+
     DatasetCatalog.register("wen", dict_getter.get_train_dicts)
     MetadataCatalog.get("wen").thing_classes = ["G1", "G2", "ms", "ears", "uncategorized", "ls", "multinuc", "mito"]
     MetadataCatalog.get("wen").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3, 5:4, 6:5, 7:6, 8:7}
@@ -125,6 +131,8 @@ def register_custom_datasets():
     dict_getter = DictGetter("wings", train_path='/scratch/bunk/wings/images/COCO/DIR/train2014',
                              val_path='/scratch/bunk/wings/images/COCO/DIR/val2014')
 
+    path_dict["wings"] = dict_getter.train_path
+
     DatasetCatalog.register("wings", dict_getter.get_train_dicts)
     MetadataCatalog.get("wings").thing_classes = ["wing"]
     MetadataCatalog.get("wings").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:0}
@@ -133,4 +141,4 @@ def register_custom_datasets():
     MetadataCatalog.get("wings_val").thing_classes = ["wing"]
     MetadataCatalog.get("wings_val").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:0}
 
-    return
+    return path_dict

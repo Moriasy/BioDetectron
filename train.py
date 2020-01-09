@@ -11,9 +11,9 @@ from detectron2.engine import default_argument_parser, DefaultTrainer, launch, d
 from detectron2.data import build_detection_test_loader, build_detection_train_loader, DatasetMapper
 
 from datasets import register_custom_datasets
+from utils import copy_code, get_mean_std
 from data import BoxDetectionLoader
 from eval import GenericEvaluator
-from utils import copy_code
 
 
 class Trainer(DefaultTrainer):
@@ -38,11 +38,17 @@ def setup(args):
     date_time = datetime.now().strftime("%m%d%y_%H%M%S")
     cfg.OUTPUT_DIR = os.path.join(cfg.OUTPUT_DIR, cfg.DATASETS.TRAIN[0], date_time)
 
+    path_dict = register_custom_datasets()
+
     if comm.get_rank() == 0:
         copy_code(cfg.OUTPUT_DIR)
 
+    if "None" in cfg.MODEL.PIXEL_MEAN or "None" in cfg.MODEL.PIXEL_STD:
+        mean, std = get_mean_std(path_dict[cfg.DATASETS.TRAIN[0]])
+        cfg.MODEL.PIXEL_MEAN = mean
+        cfg.MODEL.PIXEL_STD = std
+
     cfg.freeze()
-    register_custom_datasets()
     default_setup(cfg, args)
 
     setup_logger(output=cfg.OUTPUT_DIR, distributed_rank=comm.get_rank(), name="detectron")
