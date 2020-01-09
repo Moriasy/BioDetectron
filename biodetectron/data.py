@@ -1,5 +1,4 @@
 import os
-import cv2
 import copy
 import torch
 import numpy as np
@@ -28,7 +27,7 @@ def get_csv(root_dir, dataset):
         record = {}
 
         ### THIS IS UNEFFICIENT
-        height, width = cv2.imread(filename).shape[:2]
+        height, width = imread(filename).shape[:2]
 
         record["file_name"] = filename
         record["image_id"] = idx

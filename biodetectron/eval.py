@@ -3,7 +3,6 @@ import sys
 import copy
 import torch
 import logging
-import visdom
 import numpy as np
 from glob import glob
 from skimage.io import imread

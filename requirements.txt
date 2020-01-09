@@ -1,0 +1,6 @@
+git+git://github.com/facebookresearch/detectron2@54d8e798ade481274387779018969f388dd0443d
+pandas==0.24.2
+scikit-image==0.16.2
+imgaug==0.3.0
+numpy==1.16.2
+pycocotools==2.0.0
