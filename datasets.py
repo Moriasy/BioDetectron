@@ -59,9 +59,18 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
             ])
 
     else:
-        seq = iaa.Sequential([
-            resize
-        ])
+        if is_train:
+            seq = iaa.Sequential([
+                resize,
+                iaa.Fliplr(0.5),
+                iaa.Flipud(0.1),
+                iaa.Sometimes(1, iaa.Rot90(k=(0, 3))),
+            ])
+
+        else:
+            seq = iaa.Sequential([
+                resize,
+            ])
 
     return seq
 
