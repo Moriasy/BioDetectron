@@ -11,7 +11,7 @@ MODEL:
   FPN:
     IN_FEATURES: ["res2", "res3", "res4", "res5"]
   ANCHOR_GENERATOR:
-    SIZES: [[8], [16], [32], [48], [64]]  # One size for each in feature map
+    SIZES: [[64], [128], [196], [256], [184]]  # One size for each in feature map
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
   RPN:
     IN_FEATURES: ["p2", "p3", "p4", "p5", "p6"]
@@ -25,7 +25,7 @@ MODEL:
   ROI_HEADS:
     NAME: "StandardROIHeads"
     IN_FEATURES: ["p2", "p3", "p4", "p5"]
-    NUM_CLASSES: 8
+    NUM_CLASSES: 1
   ROI_BOX_HEAD:
     NAME: "FastRCNNConvFCHead"
     NUM_FC: 2
@@ -34,23 +34,25 @@ MODEL:
     NAME: "MaskRCNNConvUpsampleHead"
     NUM_CONV: 4
     POOLER_RESOLUTION: 14
-  PIXEL_MEAN: [36.51, 36.51, 36.51]
-  PIXEL_STD: [30.87, 30.87, 30.87]
+  PIXEL_MEAN: [192.56, 192.56, 192.56]
+  PIXEL_STD: [54.50, 54.50, 54.50]
 DATASETS: 
-  TRAIN: ("wen",)
-  TEST: ("wen_val",)
+  TRAIN: ("wings",)
+  TEST: ("wings_val",)
 DATALOADER:
-  NUM_WORKERS: 4
+  NUM_WORKERS: 8
 SOLVER:
   IMS_PER_BATCH: 8
-  BASE_LR: 0.02
+  BASE_LR: 0.001
+  CHECKPOINT_PERIOD: 1000
   STEPS: (60000, 80000)
   MAX_ITER: 100000
-  CHECKPOINT_PERIOD: 1000
+  WARMUP_ITERS: 250
 INPUT:
-  MIN_SIZE_TRAIN: (1500,)
-  MAX_SIZE_TRAIN: 2500
+  MIN_SIZE_TRAIN: (1120,)
+  MAX_SIZE_TRAIN: 2000
 TEST:
-  EVAL_PERIOD: -1
+  EVAL_PERIOD: 1000
 OUTPUT_DIR: '/scratch/bunk/logs'
 VIS_PERIOD: 250
+  
