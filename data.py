@@ -8,8 +8,6 @@ from glob import glob
 from skimage.io import imread
 from skimage.exposure import rescale_intensity
 
-import imgaug as ia
-from imgaug import augmenters as iaa
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 
 from detectron2.structures import BoxMode
@@ -17,25 +15,7 @@ from detectron2.data import transforms as T
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.data import DatasetMapper, MetadataCatalog, detection_utils as utils
 
-
-
-class DictGetter:
-    def __init__(self, dataset, train_path=None, val_path=None):
-        self.dataset = dataset
-        self.train_path = train_path
-        self.val_path = val_path
-
-    def get_train_dicts(self):
-        if self.train_path:
-            return get_csv(self.train_path, self.dataset)
-        else:
-            raise ValueError("Training data path is not set!")
-
-    def get_val_dicts(self):
-        if self.val_path:
-            return get_csv(self.val_path, self.dataset)
-        else:
-            raise ValueError("Validation data path is not set!")
+from datasets import get_custom_augmenters
 
 
 def get_csv(root_dir, dataset):
@@ -121,24 +101,14 @@ class BoxDetectionLoader(DatasetMapper):
         boxes = BoundingBoxesOnImage(boxes, shape=image_shape)
 
         # Define augmentations.
-        if self.is_train:
-            seq = iaa.Sequential([
-                iaa.Resize({"height": self.cfg.INPUT.MAX_SIZE_TRAIN, "width":"keep-aspect-ratio"}),
-                iaa.Fliplr(0.5),
-                iaa.Flipud(0.1),
-                iaa.Sometimes(0.25, iaa.Rot90(k=(0, 3))),
-                iaa.Sometimes(0.33, iaa.GammaContrast(gamma=(0.8, 1.2))),
-                iaa.Sometimes(0.5, iaa.Multiply(mul=(0.3, 2))),
-                iaa.Sometimes(0.33, iaa.GaussianBlur(sigma=(0.25, 1)))
-            ])
+        seq = get_custom_augmenters(
+            self.cfg.DATASETS.TRAIN,
+            self.cfg.INPUT.MAX_SIZE_TRAIN,
+            self.is_train,
+            image_shape
+        )
 
-            image, boxes = seq(image=image, bounding_boxes=boxes)
-        else:
-            seq = iaa.Sequential([
-                iaa.Resize({"height": self.cfg.INPUT.MAX_SIZE_TRAIN, "width":"keep-aspect-ratio"}),
-            ])
-
-            image, _ = seq(image=image, bounding_boxes=boxes)
+        image, boxes = seq(image=image, bounding_boxes=boxes)
 
         # Convert image to tensor for pytorch model.
         dataset_dict["image"] = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))

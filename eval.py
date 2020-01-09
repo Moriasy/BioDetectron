@@ -85,6 +85,7 @@ class GenericEvaluator(DatasetEvaluator):
 
     def _eval_predictions(self, tasks):
         if "AP" in tasks:
+            self._results["AP"] = {}
             ap_scores = []
             for n in range(len(self._predictions)):
                 boxes = BoundingBoxes()
@@ -120,11 +121,12 @@ class GenericEvaluator(DatasetEvaluator):
                 metric_evaluator = MetricEvaluator()
                 results = metric_evaluator.GetPascalVOCMetrics(boxes)
 
-                ap_scores.append(results[0]["AP"])
+                for cls in results:
+                    if n == 0:
+                        ap_scores.append([])
+                    ap_scores[n].append(cls["AP"])
 
-            mean_AP = np.mean(ap_scores)
+            for cls_n in range(len(ap_scores)):
+                self._results["AP"]["Class {} AP".format(cls_n)] = np.mean(ap_scores[cls_n])
 
-            self._results["AP"] = mean_AP
-
-        print(self._results["AP"])
         return

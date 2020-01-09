@@ -7,12 +7,12 @@ from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
 from detectron2.evaluation import DatasetEvaluators
 from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.data.datasets import load_coco_json, register_coco_instances
 from detectron2.data import build_detection_test_loader, build_detection_train_loader, DatasetMapper
 from detectron2.engine import default_argument_parser, DefaultTrainer, DefaultPredictor, launch, default_setup
 
-from data import BoxDetectionLoader, DictGetter
+from datasets import register_custom_datasets
+from data import BoxDetectionLoader
 from eval import GenericEvaluator
 from utils import copy_code
 
@@ -127,46 +127,8 @@ def setup(args):
     if comm.get_rank() == 0:
         copy_code(cfg.OUTPUT_DIR)
 
-    ####### OSMAN DATA
-    if "osman" in cfg.DATASETS.TRAIN:
-        dict_getter = DictGetter("osman", train_path='/scratch/bunk/osman/mating_cells/COCO/DIR/train',
-                                 val_path='/scratch/bunk/osman/mating_cells/COCO/DIR/val')
-
-        DatasetCatalog.register("osman", dict_getter.get_train_dicts)
-        MetadataCatalog.get("osman").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
-        MetadataCatalog.get("osman").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3}
-
-        DatasetCatalog.register("osman_val", dict_getter.get_val_dicts)
-        MetadataCatalog.get("osman_val").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
-        MetadataCatalog.get("osman_val").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2,}
-
-    ####### WEN DATA
-    elif "wen" in cfg.DATASETS.TRAIN:
-        dict_getter = DictGetter("wen", train_path='/scratch/bunk/wen/COCO/DIR/train2014',
-                                 val_path='/scratch/bunk/wen/COCO/DIR/val2014')
-
-        DatasetCatalog.register("wen", dict_getter.get_train_dicts)
-        MetadataCatalog.get("wen").thing_classes = ["G1", "G2", "ms", "ears", "uncategorized", "ls", "multinuc", "mito"]
-        MetadataCatalog.get("wen").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3, 5:4, 6:5, 7:6, 8:7}
-
-        DatasetCatalog.register("wen_val", dict_getter.get_val_dicts)
-        MetadataCatalog.get("wen_val").thing_classes = ["G1", "G2", "ms", "ears", "uncategorized", "ls", "multinuc", "mito"]
-        MetadataCatalog.get("wen_val").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3, 5:4, 6:5, 7:6, 8:7}
-
-    ####### WEN DATA
-    elif "wings" in cfg.DATASETS.TRAIN:
-        dict_getter = DictGetter("wings", train_path='/scratch/bunk/wings/images/COCO/DIR/train2014',
-                                 val_path='/scratch/bunk/wings/images/COCO/DIR/val2014')
-
-        DatasetCatalog.register("wings", dict_getter.get_train_dicts)
-        MetadataCatalog.get("wings").thing_classes = ["wing"]
-        MetadataCatalog.get("wings").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:0}
-
-        DatasetCatalog.register("wings_val", dict_getter.get_val_dicts)
-        MetadataCatalog.get("wings_val").thing_classes = ["wing"]
-        MetadataCatalog.get("wings_val").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:0}
-
     cfg.freeze()
+    register_custom_datasets()
     default_setup(cfg, args)
 
     setup_logger(output=cfg.OUTPUT_DIR, distributed_rank=comm.get_rank(), name="detectron")
