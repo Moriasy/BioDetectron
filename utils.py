@@ -64,3 +64,19 @@ def coco2csv(dataDir, dataType, annFile, mask=False):
             df = df.drop('segmentation', axis=1)
 
         df.to_csv(os.path.join(dataDir, dataType, os.path.splitext(path)[0] + '.csv'))
+
+
+def box2csv(boxes, labels, scores, path):
+    df = {'category_id': [], 'x1': [], 'y1': [], 'x2': [], 'y2': [], 'score': []}
+
+    for n in range(len(labels)):
+        df['x1'].append(int(boxes[n][0]))
+        df['y1'].append(int(boxes[n][1]))
+        df['x2'].append(int(boxes[n][2]))
+        df['y2'].append(int(boxes[n][3]))
+
+        df['category_id'].append(labels[n])
+        df['score'].append(scores[n])
+
+    df = DataFrame(df)
+    df.to_csv(path)
