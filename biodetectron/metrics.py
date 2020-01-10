@@ -317,6 +317,7 @@ class MethodAveragePrecision(Enum):
 class Evaluator:
     def GetPascalVOCMetrics(self,
                             boundingboxes,
+                            class_n,
                             IOUThreshold=0.5,
                             method=MethodAveragePrecision.EveryPointInterpolation):
         """Get the metrics used by the VOC Pascal 2012 challenge.
@@ -378,7 +379,22 @@ class Evaluator:
 
         # Precision x Recall is obtained individually by each class
         # Loop through by classes
-        for c in classes:
+        for c in range(class_n):
+            if c not in classes:
+                r = {
+                    'class': np.nan,
+                    'precision': np.nan,
+                    'recall': np.nan,
+                    'AP': np.nan,
+                    'interpolated precision': np.nan,
+                    'interpolated recall': np.nan,
+                    'total positives': np.nan,
+                    'total TP': np.nan,
+                    'total FP': np.nan
+                }
+                ret.append(r)
+                continue
+
             # Get only detection of class c
             dects = []
             [dects.append(d) for d in detections if d[1] == c]

@@ -33,6 +33,7 @@ class GenericEvaluator(DatasetEvaluator):
         self._logger = logging.getLogger(__name__)
 
         self._metadata = MetadataCatalog.get(dataset_name)
+        self.class_n = cfg.MODEL.ROI_HEADS.NUM_CLASSES
 
     def reset(self):
         self._predictions = []
@@ -124,15 +125,16 @@ class GenericEvaluator(DatasetEvaluator):
                     boxes.addBoundingBox(bbox)
 
                 metric_evaluator = MetricEvaluator()
-                results = metric_evaluator.GetPascalVOCMetrics(boxes)
+                results = metric_evaluator.GetPascalVOCMetrics(boxes, self.class_n)
 
-                for cls in results:
+                for cls_idx in range(self.class_n):
                     if n == 0:
                         ap_scores.append([])
-                    ap_scores[n].append(cls["AP"])
+                    ap_scores[n].append(results[cls_idx]["AP"])
 
-            for cls_n in range(len(ap_scores)):
-                self._results["AP"]["Class {} AP".format(cls_n)] = np.mean(ap_scores[cls_n])
+            for cls_idx in range(len(ap_scores)):
+                ap_scores[cls_idx] = [x for x in ap_scores[cls_idx] if not np.isnan(x)]
+                self._results["AP"]["Class {} AP".format(cls_idx)] = np.mean(ap_scores[cls_idx])
 
         return
 
