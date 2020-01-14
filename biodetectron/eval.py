@@ -16,6 +16,7 @@ from detectron2.config import get_cfg
 from detectron2.data import MetadataCatalog
 from detectron2.utils.visualizer import Visualizer
 from detectron2.evaluation import DatasetEvaluator
+from detectron2.utils.events import get_event_storage
 from detectron2.engine import HookBase, DefaultPredictor
 
 from utils import box2csv
@@ -90,6 +91,21 @@ class GenericEvaluator(DatasetEvaluator):
         return
 
     def _eval_predictions(self, tasks):
+        storage = get_event_storage()
+
+        for n in range(len(self._predictions)):
+            metadata = MetadataCatalog.get(self._dataset_name)
+
+            image = self._predictions[n]["groundtruth"]["gt_image"]
+
+            viz = Visualizer(image, metadata)
+            viz = viz.draw_instance_predictions(self._predictions[n]["instances"])
+
+            viz_image = viz.get_image()
+            viz_image = viz_image.transpose(2, 0, 1)
+            storage.put_image("Evaluation predictions",viz_image)
+
+
         if "AP" in tasks:
             self._results["AP"] = {}
             ap_scores = []
@@ -130,7 +146,7 @@ class GenericEvaluator(DatasetEvaluator):
                 for cls_idx in range(self.class_n):
                     if n == 0:
                         ap_scores.append([])
-                    ap_scores[n].append(results[cls_idx]["AP"])
+                    ap_scores[cls_idx].append(results[cls_idx]["AP"])
 
             for cls_idx in range(len(ap_scores)):
                 ap_scores[cls_idx] = [x for x in ap_scores[cls_idx] if not np.isnan(x)]
