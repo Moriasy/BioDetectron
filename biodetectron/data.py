@@ -86,8 +86,8 @@ class BoxDetectionLoader(DatasetMapper):
         utils.check_image_size(dataset_dict, image)
         image_shape = image.shape[:2]  # h, w
 
-        ### CUSTOM NORMALIZATION ?
-        ### CHECK DATATYPE HERE !
+        if not self.is_train:
+            dataset_dict['gt_image'] = image
 
         # Convert bounding boxes to imgaug format for augmentation.
         boxes = []
@@ -107,7 +107,14 @@ class BoxDetectionLoader(DatasetMapper):
             image_shape
         )
 
-        image, boxes = seq(image=image, bounding_boxes=boxes)
+        if self.is_train:
+            image, boxes = seq(image=image, bounding_boxes=boxes)
+        else:
+            image, _ = seq(image=image, bounding_boxes=boxes)
+
+        if 0 in self.cfg.MODEL.PIXEL_MEAN and 1 in self.cfg.MODEL.PIXEL_STD:
+            image = image.astype(np.float32)
+            image = rescale_intensity(image)
 
         # Convert image to tensor for pytorch model.
         dataset_dict["image"] = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
