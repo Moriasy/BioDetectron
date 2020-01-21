@@ -13,13 +13,16 @@ from skimage.exposure import rescale_intensity
 
 import detectron2.utils.comm as comm
 from detectron2.config import get_cfg
+from detectron2.engine import HookBase
 from detectron2.data import MetadataCatalog
 from detectron2.utils.visualizer import Visualizer
+from detectron2.modeling import GeneralizedRCNN
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.events import get_event_storage
-from detectron2.engine import HookBase, DefaultPredictor
+from detectron2.checkpoint import DetectionCheckpointer
 
 from utils import box2csv
+from datasets import get_custom_augmenters
 from metrics import BoundingBox, BoundingBoxes, BBFormat, BBType, Evaluator as MetricEvaluator
 
 
@@ -161,7 +164,37 @@ class BboxPredictor():
         self.cfg.merge_from_file(cfg)
         self.cfg.MODEL.WEIGHTS = weights
 
-        self.predictor = DefaultPredictor(self.cfg)
+        self.model = GeneralizedRCNN(self.cfg)
+        self.model.eval()
+
+        checkpointer = DetectionCheckpointer(self.model)
+        checkpointer.load(self.cfg.MODEL.WEIGHTS)
+
+    def preprocess_img(self, image):
+        if len(image.shape) < 3:
+            image = np.expand_dims(image, axis=-1)
+            image = np.repeat(image, 3, axis=-1)
+        elif image.shape[-1] == 1:
+            image = np.repeat(image, 3, axis=-1)
+
+        height, width = image.shape[:2]
+
+        seq = get_custom_augmenters(
+            self.cfg.DATASETS.TRAIN,
+            self.cfg.INPUT.MAX_SIZE_TRAIN,
+            False,
+            image.shape
+        )
+
+        image = seq(image=image)
+
+        image = image.astype(np.float32)
+        image = rescale_intensity(image)
+
+        image = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
+        image = {"image": image, "height": height, "width": width}
+
+        return image
 
     def inference_on_folder(self, folder):
         imglist = glob(os.path.join(folder, '*.jpg')) + \
@@ -171,21 +204,14 @@ class BboxPredictor():
         for path in imglist:
             image = imread(path)
 
-            if len(image.shape) < 3:
-                image = np.expand_dims(image, axis=-1)
-                image = np.repeat(image, 3, axis=-1)
-            elif image.shape[-1] == 1:
-                image = np.repeat(image, 3, axis=-1)
-
-            image = rescale_intensity(image, in_range='dtype', out_range=(0, 255))
-            image = image.astype(np.uint8)
-
             boxes, classes, scores = self.detect_one_image(image)
             box2csv(boxes, classes, scores, os.path.splitext(path)[0] + '_predict.csv')
 
-
     def detect_one_image(self, image):
-        instances = self.predictor(image)["instances"]
+        image = self.preprocess_img(image)
+
+        with torch.no_grad():
+            instances = self.model([image])[0]["instances"]
 
         boxes = list(instances.pred_boxes)
         boxes = [tuple(box.cpu().numpy()) for box in boxes]
