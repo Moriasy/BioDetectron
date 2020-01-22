@@ -90,8 +90,6 @@ def setup(args):
     date_time = datetime.now().strftime("%m%d%y_%H%M%S")
     cfg.OUTPUT_DIR = os.path.join(cfg.OUTPUT_DIR, cfg.DATASETS.TRAIN[0], date_time)
 
-    path_dict = register_custom_datasets()
-
     if comm.get_rank() == 0:
         copy_code(cfg.OUTPUT_DIR)
 
