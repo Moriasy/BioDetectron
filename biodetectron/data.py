@@ -17,10 +17,12 @@ from detectron2.data import DatasetMapper, MetadataCatalog, detection_utils as u
 from datasets import get_custom_augmenters
 
 
-def get_csv(root_dir, dataset):
+def get_csv(root_dir, dataset, suffix='', do_mapping=True):
     imglist = glob(os.path.join(root_dir, '*.jpg')) + \
                     glob(os.path.join(root_dir, '*.tif')) + \
                     glob(os.path.join(root_dir, '*.png'))
+
+    imglist.sort()
 
     dataset_dicts = []
     for idx, filename in enumerate(imglist):
@@ -34,11 +36,14 @@ def get_csv(root_dir, dataset):
         record["height"] = height
         record["width"] = width
 
-        targets = pd.read_csv(imglist[idx].replace('jpg', 'csv').replace('tif', 'csv').replace('png', 'csv'))
+        targets = pd.read_csv(imglist[idx].replace('.jpg', suffix + '.csv').replace('.tif', suffix + '.csv').replace('.png', suffix + '.csv'))
 
-        try:
-            mapping = MetadataCatalog.get(dataset).thing_dataset_id_to_contiguous_id
-        except:
+        if do_mapping:
+            try:
+                mapping = MetadataCatalog.get(dataset).thing_dataset_id_to_contiguous_id
+            except:
+                mapping = None
+        else:
             mapping = None
 
         objs = []

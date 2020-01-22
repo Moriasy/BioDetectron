@@ -1,15 +1,24 @@
 import os
 import errno
+import ffmpeg
 import numpy as np
 from glob import glob
 from skimage.io import imread
+from skimage.exposure import rescale_intensity
 
 from shutil import copytree
 from os.path import isdir, join
 from fnmatch import fnmatch, filter
 
+from detectron2.structures import BoxMode
+from detectron2.data import MetadataCatalog
+from detectron2.utils.visualizer import Visualizer
+
 from pandas import DataFrame
 from pycocotools.coco import COCO
+
+import datasets
+from data import get_csv
 
 
 def include_patterns(*patterns):
@@ -118,3 +127,108 @@ def box2csv(boxes, labels, scores, path):
 
     df = DataFrame(df)
     df.to_csv(path)
+
+
+class ColorVisualizer(Visualizer):
+    def draw_dataset_dict(self, dic, colors=None):
+        """
+        Draw annotations/segmentaions in Detectron2 Dataset format.
+
+        Args:
+            dic (dict): annotation/segmentation data of one image, in Detectron2 Dataset format.
+
+        Returns:
+            output (VisImage): image object with visualizations.
+        """
+        annos = dic.get("annotations", None)
+        if annos:
+            if "segmentation" in annos[0]:
+                masks = [x["segmentation"] for x in annos]
+            else:
+                masks = None
+            if "keypoints" in annos[0]:
+                keypts = [x["keypoints"] for x in annos]
+                keypts = np.array(keypts).reshape(len(annos), -1, 3)
+            else:
+                keypts = None
+
+            boxes = [BoxMode.convert(x["bbox"], x["bbox_mode"], BoxMode.XYXY_ABS) for x in annos]
+
+            labels = [x["category_id"] for x in annos]
+
+            if colors is not None:
+                try:
+                    assigned_colors = [colors[x] for x in labels]
+                except:
+                    raise IndexError("Number of colors set in metadata less than predicted classes!")
+            else:
+                assigned_colors = None
+
+            names = self.metadata.get("thing_classes", None)
+            if names:
+                labels = [names[i] for i in labels]
+            labels = [
+                "{}".format(i) + ("|crowd" if a.get("iscrowd", 0) else "")
+                for i, a in zip(labels, annos)
+            ]
+            self.overlay_instances(labels=labels, boxes=boxes, masks=masks, keypoints=keypts, assigned_colors=assigned_colors)
+
+        sem_seg = dic.get("sem_seg", None)
+        if sem_seg is None and "sem_seg_file_name" in dic:
+            sem_seg = imread(dic["sem_seg_file_name"])
+        if sem_seg is not None:
+            self.draw_sem_seg(sem_seg, area_threshold=0, alpha=0.5)
+        return self.output
+
+
+def vidwrite(fn, images, framerate=2, vcodec='libx264'):
+    if not isinstance(images, np.ndarray):
+        images = np.asarray(images)
+    n, height, width, channels = images.shape
+    process = (
+        ffmpeg
+            .input('pipe:', format='rawvideo', pix_fmt='rgb24', r=1, s='{}x{}'.format(width, height))
+            .output(fn, pix_fmt='yuv420p', vcodec=vcodec, r=framerate)
+            .overwrite_output()
+            .run_async(pipe_stdin=True)
+    )
+    for frame in images:
+        process.stdin.write(
+            frame
+                .astype(np.uint8)
+                .tobytes()
+        )
+    process.stdin.close()
+    process.wait()
+
+
+def csv2video(file_out, path_in, dataset=None, suffix='_predict', do_mapping=False):
+    dict_list = get_csv(path_in, dataset, suffix=suffix, do_mapping=do_mapping)
+    metadata = MetadataCatalog.get(dataset)
+
+    try:
+        colors = metadata.thing_classes_color
+    except:
+        colors = None
+
+    imgstack = []
+    for dic in dict_list:
+        image = imread(dic["file_name"])
+        if len(image.shape) < 3:
+            image = np.expand_dims(image, axis=-1)
+        if image.shape[0] < image.shape[-1]:
+            image = np.transpose(image, (1, 2, 0))
+        if image.shape[-1] == 1:
+            image = np.repeat(image, 3, axis=-1)
+
+        image = rescale_intensity(image, out_range=(0, 255))
+        image = image.astype(np.uint8)
+
+        viz = ColorVisualizer(image, metadata)
+        viz = viz.draw_dataset_dict(dic, colors=colors)
+
+        imgstack.append(viz.get_image())
+
+    print(len(imgstack))
+
+    vidwrite(file_out, imgstack, framerate=2)
