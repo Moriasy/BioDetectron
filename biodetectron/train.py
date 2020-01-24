@@ -14,10 +14,10 @@ from detectron2.data.datasets import load_coco_json, register_coco_instances
 from detectron2.engine import default_argument_parser, DefaultTrainer, launch, default_setup
 from detectron2.data import build_detection_test_loader, build_detection_train_loader, DatasetMapper
 
-from datasets import register_custom_datasets
-from utils import copy_code, get_mean_std
-from data import BoxDetectionLoader
-from eval import GenericEvaluator
+from biodetectron.datasets import register_custom_datasets
+from biodetectron.utils import copy_code, get_mean_std
+from biodetectron.data import BoxDetectionLoader
+from biodetectron.eval import GenericEvaluator
 
 
 class Trainer(DefaultTrainer):

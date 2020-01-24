@@ -21,9 +21,9 @@ from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.events import get_event_storage
 from detectron2.checkpoint import DetectionCheckpointer
 
-from utils import box2csv
-from datasets import get_custom_augmenters
-from metrics import BoundingBox, BoundingBoxes, BBFormat, BBType, Evaluator as MetricEvaluator
+from biodetectron.utils import box2csv
+from biodetectron.datasets import get_custom_augmenters
+from biodetectron.metrics import BoundingBox, BoundingBoxes, BBFormat, BBType, Evaluator as MetricEvaluator
 
 
 class GenericEvaluator(DatasetEvaluator):

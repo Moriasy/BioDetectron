@@ -17,8 +17,8 @@ from detectron2.utils.visualizer import Visualizer
 from pandas import DataFrame
 from pycocotools.coco import COCO
 
-import datasets
-from data import get_csv
+from biodetectron.datasets import *
+from biodetectron.data import get_csv
 
 
 def include_patterns(*patterns):
