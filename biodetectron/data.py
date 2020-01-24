@@ -14,7 +14,7 @@ from detectron2.data import transforms as T
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.data import DatasetMapper, MetadataCatalog, detection_utils as utils
 
-from datasets import get_custom_augmenters
+from biodetectron.datasets import get_custom_augmenters
 
 
 def get_csv(root_dir, dataset, suffix='', do_mapping=True):

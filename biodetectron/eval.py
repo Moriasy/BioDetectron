@@ -21,9 +21,9 @@ from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.events import get_event_storage
 from detectron2.checkpoint import DetectionCheckpointer
 
-from utils import box2csv
-from datasets import get_custom_augmenters
-from metrics import BoundingBox, BoundingBoxes, BBFormat, BBType, Evaluator as MetricEvaluator
+from biodetectron.utils import box2csv
+from biodetectron.datasets import get_custom_augmenters
+from biodetectron.metrics import BoundingBox, BoundingBoxes, BBFormat, BBType, Evaluator as MetricEvaluator
 
 
 class GenericEvaluator(DatasetEvaluator):
@@ -196,16 +196,29 @@ class BboxPredictor():
 
         return image
 
-    def inference_on_folder(self, folder):
-        imglist = glob(os.path.join(folder, '*.jpg')) + \
+    def inference_on_folder(self, folder, saving=True, output=True):
+        pathlist = glob(os.path.join(folder, '*.jpg')) + \
                   glob(os.path.join(folder, '*.tif')) + \
                   glob(os.path.join(folder, '*.png'))
 
-        for path in imglist:
+        imglist= []
+        boxlist = []
+        classlist = []
+        scorelist= []
+        for path in pathlist:
             image = imread(path)
 
             boxes, classes, scores = self.detect_one_image(image)
-            box2csv(boxes, classes, scores, os.path.splitext(path)[0] + '_predict.csv')
+            boxlist.append(boxes)
+            classlist.append(classes)
+            scorelist.append(scores)
+            imglist.append(image)
+
+            if saving:
+                box2csv(boxes, classes, scores, os.path.splitext(path)[0] + '_predict.csv')
+
+        return pathlist, imglist, boxlist, classlist, scorelist
+
 
     def detect_one_image(self, image):
         image = self.preprocess_img(image)

@@ -16,6 +16,8 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
                 iaa.Fliplr(0.5),
                 iaa.Flipud(0.1),
                 iaa.Sometimes(1, iaa.Rot90(k=(0, 3))),
+                iaa.Sometimes(0.33, iaa.GammaContrast(gamma=(0.8, 1.2))),
+                iaa.Sometimes(0.5, iaa.Multiply(mul=(0.5, 1.5))),
             ])
 
         else:
@@ -32,6 +34,8 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
                 iaa.Fliplr(0.5),
                 iaa.Flipud(0.1),
                 iaa.Sometimes(1, iaa.Rot90(k=(0, 3))),
+                iaa.Sometimes(0.33, iaa.GammaContrast(gamma=(0.8, 1.2))),
+                iaa.Sometimes(0.5, iaa.Multiply(mul=(0.5, 1.5))),
             ])
 
         else:
@@ -46,7 +50,7 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
             seq = iaa.Sequential([
                 resize,
                 iaa.Fliplr(0.5),
-                iaa.Flipud(0.1),
+                iaa.Flipud(0.5),
                 iaa.Sometimes(0.25, iaa.Rot90(k=(0, 3))),
                 iaa.Sometimes(0.33, iaa.GammaContrast(gamma=(0.8, 1.2))),
                 iaa.Sometimes(0.5, iaa.Multiply(mul=(0.3, 2))),
@@ -106,12 +110,12 @@ def register_custom_datasets():
     path_dict["osman"] = dict_getter.train_path
 
     DatasetCatalog.register("osman", dict_getter.get_train_dicts)
-    MetadataCatalog.get("osman").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
-    MetadataCatalog.get("osman").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3}
+    MetadataCatalog.get("osman").thing_classes = ["mating", "single_cell", "crowd"]
+    MetadataCatalog.get("osman").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:1, 4:2}
 
     DatasetCatalog.register("osman_val", dict_getter.get_val_dicts)
-    MetadataCatalog.get("osman_val").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
-    MetadataCatalog.get("osman_val").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2,}
+    MetadataCatalog.get("osman_val").thing_classes = ["mating", "single_cell", "crowd"]
+    MetadataCatalog.get("osman_val").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:1, 4:2}
 
     ####### WEN DATA
     dict_getter = DictGetter("wen", train_path='/scratch/bunk/wen/COCO/DIR/train2014',
@@ -122,10 +126,30 @@ def register_custom_datasets():
     DatasetCatalog.register("wen", dict_getter.get_train_dicts)
     MetadataCatalog.get("wen").thing_classes = ["G1", "G2", "ms", "ears", "uncategorized", "ls", "multinuc", "mito"]
     MetadataCatalog.get("wen").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3, 5:4, 6:5, 7:6, 8:7}
+    MetadataCatalog.get("wen").thing_classes_color = [
+        (1.000, 0.000, 0.000),
+        (0.0666, 0.000, 1.000),
+        (0.969, 0.969, 0.075),
+        (0.270, 0.714, 0.357),
+        (1.000, 1.000, 1.000),
+        (1.000, 0.620, 0.043),
+        (0.816, 0.800, 0.588),
+        (0.965, 0.129, 0.827)
+    ]
 
     DatasetCatalog.register("wen_val", dict_getter.get_val_dicts)
     MetadataCatalog.get("wen_val").thing_classes = ["G1", "G2", "ms", "ears", "uncategorized", "ls", "multinuc", "mito"]
     MetadataCatalog.get("wen_val").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3, 5:4, 6:5, 7:6, 8:7}
+    MetadataCatalog.get("wen_val").thing_classes_color = [
+        (1.000, 0.000, 0.000),
+        (0.0666, 0.000, 1.000),
+        (0.969, 0.969, 0.075),
+        (0.270, 0.714, 0.357),
+        (1.000, 1.000, 1.000),
+        (1.000, 0.620, 0.043),
+        (0.816, 0.800, 0.588),
+        (0.965, 0.129, 0.827)
+    ]
 
     ####### WING DATA
     dict_getter = DictGetter("wings", train_path='/scratch/bunk/wings/images/COCO/DIR/train2014',
@@ -142,3 +166,6 @@ def register_custom_datasets():
     MetadataCatalog.get("wings_val").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:0}
 
     return path_dict
+
+
+register_custom_datasets()
