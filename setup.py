@@ -26,5 +26,6 @@ setuptools.setup(
         "imgaug==0.3.0",
         "numpy==1.16.2",
         "pycocotools==2.0.0"
+        "ffmpeg-python"
     ]
 )
