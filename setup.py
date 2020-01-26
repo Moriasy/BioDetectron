@@ -20,7 +20,7 @@ setuptools.setup(
     ],
     python_requires='>=3.6',
     install_requires=[
-        "detectron2@https://github.com/facebookresearch/detectron2@54d8e798ade481274387779018969f388dd0443d",
+        "detectron2@https://github.com/facebookresearch/detectron2",
         "pandas==0.24.2",
         "scikit-image==0.16.2",
         "imgaug==0.3.0",
