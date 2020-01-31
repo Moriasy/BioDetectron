@@ -170,7 +170,7 @@ class BboxPredictor():
         checkpointer = DetectionCheckpointer(self.model)
         checkpointer.load(self.cfg.MODEL.WEIGHTS)
 
-    def preprocess_img(self, image):
+    def preprocess_img(self, image, norm=False):
         if len(image.shape) < 3:
             image = np.expand_dims(image, axis=-1)
             image = np.repeat(image, 3, axis=-1)
@@ -188,15 +188,16 @@ class BboxPredictor():
 
         image = seq(image=image)
 
-        image = image.astype(np.float32)
-        image = rescale_intensity(image)
+        if norm:
+            image = image.astype(np.float32)
+            image = rescale_intensity(image)
 
         image = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
         image = {"image": image, "height": height, "width": width}
 
         return image
 
-    def inference_on_folder(self, folder, saving=True, check_iou=True):
+    def inference_on_folder(self, folder, saving=True, norm=False, check_iou=True):
         pathlist = glob(os.path.join(folder, '*.jpg')) + \
                   glob(os.path.join(folder, '*.tif')) + \
                   glob(os.path.join(folder, '*.png'))
@@ -208,7 +209,7 @@ class BboxPredictor():
         for path in pathlist:
             image = imread(path)
 
-            boxes, classes, scores = self.detect_one_image(image, check_iou=check_iou)
+            boxes, classes, scores = self.detect_one_image(image, norm=norm, check_iou=check_iou)
             boxlist.append(boxes)
             classlist.append(classes)
             scorelist.append(scores)
@@ -220,8 +221,8 @@ class BboxPredictor():
         return pathlist, imglist, boxlist, classlist, scorelist
 
 
-    def detect_one_image(self, image, check_iou=True):
-        image = self.preprocess_img(image)
+    def detect_one_image(self, image, norm=False, check_iou=True):
+        image = self.preprocess_img(image, norm=norm)
 
         with torch.no_grad():
             instances = self.model([image])[0]["instances"]
