@@ -196,7 +196,7 @@ class BboxPredictor():
 
         return image
 
-    def inference_on_folder(self, folder, saving=True, output=True):
+    def inference_on_folder(self, folder, saving=True, check_iou=True):
         pathlist = glob(os.path.join(folder, '*.jpg')) + \
                   glob(os.path.join(folder, '*.tif')) + \
                   glob(os.path.join(folder, '*.png'))
@@ -208,7 +208,7 @@ class BboxPredictor():
         for path in pathlist:
             image = imread(path)
 
-            boxes, classes, scores = self.detect_one_image(image)
+            boxes, classes, scores = self.detect_one_image(image, check_iou=check_iou)
             boxlist.append(boxes)
             classlist.append(classes)
             scorelist.append(scores)
@@ -220,7 +220,7 @@ class BboxPredictor():
         return pathlist, imglist, boxlist, classlist, scorelist
 
 
-    def detect_one_image(self, image):
+    def detect_one_image(self, image, check_iou=True):
         image = self.preprocess_img(image)
 
         with torch.no_grad():
@@ -235,7 +235,8 @@ class BboxPredictor():
         classes = list(instances.pred_classes)
         classes = [cls.cpu().numpy() for cls in classes]
 
-        boxes, classes, scores = self.check_iou(boxes, scores, classes)
+        if check_iou:
+            boxes, classes, scores = self.check_iou(boxes, scores, classes)
 
         return boxes, classes, scores
 
@@ -267,7 +268,7 @@ class BboxPredictor():
 
     def check_iou(self, boxes, scores, classes):
         if len(boxes) <= 1:
-            return boxes
+            return boxes, classes, scores
 
         while True:
             new_boxes = []
