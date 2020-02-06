@@ -7,6 +7,7 @@ import numpy as np
 from glob import glob
 from skimage.io import imread
 from itertools import combinations
+from skimage.color import rgb2gray
 from subprocess import Popen, PIPE
 from collections import OrderedDict
 from skimage.exposure import rescale_intensity
@@ -159,10 +160,12 @@ class GenericEvaluator(DatasetEvaluator):
 
 
 class BboxPredictor():
-    def __init__(self, cfg, weights):
+    def __init__(self, cfg, weights=None):
         self.cfg = get_cfg()
         self.cfg.merge_from_file(cfg)
-        self.cfg.MODEL.WEIGHTS = weights
+
+        if weights is not None:
+            self.cfg.MODEL.WEIGHTS = weights
 
         self.model = GeneralizedRCNN(self.cfg)
         self.model.eval()
@@ -170,12 +173,18 @@ class BboxPredictor():
         checkpointer = DetectionCheckpointer(self.model)
         checkpointer.load(self.cfg.MODEL.WEIGHTS)
 
-    def preprocess_img(self, image, norm=False):
+    def preprocess_img(self, image, norm=False, graytrain=True):
+        image = rescale_intensity(image, in_range='dtype', out_range='uint8')
+        image = image.astype(np.uint8)
+
         if len(image.shape) < 3:
             image = np.expand_dims(image, axis=-1)
             image = np.repeat(image, 3, axis=-1)
         elif image.shape[-1] == 1:
             image = np.repeat(image, 3, axis=-1)
+        else:
+            if graytrain:
+                image = rgb2gray(image)
 
         height, width = image.shape[:2]
 
@@ -197,7 +206,7 @@ class BboxPredictor():
 
         return image
 
-    def inference_on_folder(self, folder, saving=True, norm=False, check_iou=True):
+    def inference_on_folder(self, folder, saving=True, norm=False, check_iou=True, graytrain=True):
         pathlist = glob(os.path.join(folder, '*.jpg')) + \
                   glob(os.path.join(folder, '*.tif')) + \
                   glob(os.path.join(folder, '*.png'))
@@ -209,7 +218,7 @@ class BboxPredictor():
         for path in pathlist:
             image = imread(path)
 
-            boxes, classes, scores = self.detect_one_image(image, norm=norm, check_iou=check_iou)
+            boxes, classes, scores = self.detect_one_image(image, norm=norm, check_iou=check_iou, graytrain=graytrain)
             boxlist.append(boxes)
             classlist.append(classes)
             scorelist.append(scores)
@@ -221,8 +230,8 @@ class BboxPredictor():
         return pathlist, imglist, boxlist, classlist, scorelist
 
 
-    def detect_one_image(self, image, norm=False, check_iou=True):
-        image = self.preprocess_img(image, norm=norm)
+    def detect_one_image(self, image, norm=False, check_iou=True, graytrain=True):
+        image = self.preprocess_img(image, norm=norm, graytrain=graytrain)
 
         with torch.no_grad():
             instances = self.model([image])[0]["instances"]
