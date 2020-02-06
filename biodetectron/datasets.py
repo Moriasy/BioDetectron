@@ -5,17 +5,19 @@ from detectron2.data import DatasetCatalog, MetadataCatalog
 def get_custom_augmenters(name, max_size, is_train, image_shape):
     if image_shape[0] > image_shape[1]:
         resize = iaa.Resize({"height": max_size, "width":"keep-aspect-ratio"})
+        crop = iaa.CropToFixedSize(width=None, height=image_shape[1])
     else:
         resize = iaa.Resize({"height": "keep-aspect-ratio", "width": max_size})
+        crop = iaa.CropToFixedSize(width=image_shape[1], height=None)
 
-    ####### OSMAN DATA
-    if name == "osman":
+    # ####### OSMAN DATA
+    if "osman" in name:
         if is_train:
             seq = iaa.Sequential([
                 resize,
                 iaa.Fliplr(0.5),
                 iaa.Flipud(0.1),
-                iaa.Sometimes(1, iaa.Rot90(k=(0, 3))),
+                iaa.Rot90(k=(0, 3)),
                 iaa.Sometimes(0.33, iaa.GammaContrast(gamma=(0.8, 1.2))),
                 iaa.Sometimes(0.5, iaa.Multiply(mul=(0.5, 1.5))),
             ])
@@ -26,35 +28,21 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
             ])
 
 
-    ####### WEN DATA
-    elif name == "wen":
+    # ####### WEN DATA
+    elif "wen" in name:
         if is_train:
             seq = iaa.Sequential([
-                resize,
-                iaa.Fliplr(0.5),
-                iaa.Flipud(0.1),
-                iaa.Sometimes(1, iaa.Rot90(k=(0, 3))),
-                iaa.Sometimes(0.33, iaa.GammaContrast(gamma=(0.8, 1.2))),
-                iaa.Sometimes(0.5, iaa.Multiply(mul=(0.5, 1.5))),
-            ])
-
-        else:
-            seq = iaa.Sequential([
-                resize,
-            ])
-
-
-    ####### WING DATA
-    elif name == "wings":
-        if is_train:
-            seq = iaa.Sequential([
+                crop,
                 resize,
                 iaa.Fliplr(0.5),
                 iaa.Flipud(0.5),
-                iaa.Sometimes(0.25, iaa.Rot90(k=(0, 3))),
+                iaa.Rot90(k=(0, 3)),
+                iaa.Affine(
+                    rotate=(-45, 45),
+                    backend='skimage'
+                ),
                 iaa.Sometimes(0.33, iaa.GammaContrast(gamma=(0.8, 1.2))),
-                iaa.Sometimes(0.5, iaa.Multiply(mul=(0.3, 2))),
-                iaa.Sometimes(0.33, iaa.GaussianBlur(sigma=(0.25, 1)))
+                iaa.Sometimes(0.5, iaa.Multiply(mul=(0.75, 1.25))),
             ])
 
         else:
@@ -62,6 +50,28 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
                 resize,
             ])
 
+
+    # ####### WING DATA
+    elif "wings" in name:
+        if is_train:
+            seq = iaa.Sequential([
+                crop,
+                resize,
+                iaa.Fliplr(0.5),
+                iaa.Flipud(0.5),
+                iaa.Rot90(k=(0, 3)),
+                iaa.Affine(
+                    rotate=(-45, 45),
+                    backend='skimage'
+                ),
+                iaa.Sometimes(0.33, iaa.GammaContrast(gamma=(0.8, 1.2))),
+                iaa.Sometimes(0.5, iaa.Multiply(mul=(0.75, 1.25))),
+                iaa.Sometimes(0.33, iaa.GaussianBlur(sigma=(0.25, 1)))
+            ])
+        else:
+            seq = iaa.Sequential([
+                resize,
+            ])
     else:
         if is_train:
             seq = iaa.Sequential([
