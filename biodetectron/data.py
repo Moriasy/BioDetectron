@@ -4,7 +4,9 @@ import torch
 import numpy as np
 import pandas as pd
 from glob import glob
+from pycocotools import mask as cocomask
 from skimage.io import imread
+from skimage.measure import regionprops
 from skimage.exposure import rescale_intensity
 
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
@@ -64,10 +66,87 @@ def get_csv(root_dir, dataset, suffix='', do_mapping=True):
     return dataset_dicts
 
 
+def get_masks(root_dir):
+    imglist = glob(os.path.join(root_dir, '*.jpg')) + \
+              glob(os.path.join(root_dir, '*.tif')) + \
+              glob(os.path.join(root_dir, '*.png'))
+
+    imglist.sort()
+
+    dataset_dicts = []
+    for idx, filename in enumerate(imglist):
+        record = {}
+        objs = []
+
+        ### THIS IS UNEFFICIENT
+        height, width = imread(filename).shape[1:3]
+
+        record["file_name"] = filename
+        record["image_id"] = idx
+        record["height"] = height
+        record["width"] = width
+
+        splitname = os.path.splitext(filename.replace('train', 'masks').replace('val', 'masks').replace('cmle_3', 'cmle'))
+
+        #### ATP6_NG
+        mask = imread(splitname[0] + '_ATP6-NG' + splitname[1])
+        rle_mask = cocomask.encode(np.asfortranarray(mask))
+
+        box = regionprops(mask)[0].bbox
+        box = [box[1], box[0], box[3], box[2]]
+
+        obj = {
+            "bbox": box,
+            "bbox_mode": BoxMode.XYXY_ABS,
+            "segmentation": rle_mask,
+            "category_id": 0,
+            "iscrowd": 0
+        }
+        objs.append(obj)
+
+        ##### mtKate2
+        mask = imread(splitname[0] + '_mtKate2' + splitname[1])
+        rle_mask = cocomask.encode(np.asfortranarray(mask))
+
+        box = regionprops(mask)[0].bbox
+        box = [box[1], box[0], box[3], box[2]]
+
+        obj = {
+            "bbox": box,
+            "bbox_mode": BoxMode.XYXY_ABS,
+            "segmentation": rle_mask,
+            "category_id": 1,
+            "iscrowd": 0
+        }
+        objs.append(obj)
+
+        ##### daughter
+        mask = imread(splitname[0] + '_daughter' + splitname[1])
+        rle_mask = cocomask.encode(np.asfortranarray(mask))
+
+        box = regionprops(mask)[0].bbox
+        box = [box[1], box[0], box[3], box[2]]
+
+        obj = {
+            "bbox": box,
+            "bbox_mode": BoxMode.XYXY_ABS,
+            "segmentation": rle_mask,
+            "category_id": 2,
+            "iscrowd": 0
+        }
+        objs.append(obj)
+
+        record["annotations"] = objs
+        dataset_dicts.append(record)
+
+    return dataset_dicts
+
+
 class BoxDetectionLoader(DatasetMapper):
-    def __init__(self, cfg, is_train=True):
+    def __init__(self, cfg, is_train=True, mask_format="bitmask"):
         super().__init__(cfg, is_train=is_train)
         self.cfg = cfg
+        self.mask_format=mask_format
 
     def __call__(self, dataset_dict):
         """
@@ -85,6 +164,9 @@ class BoxDetectionLoader(DatasetMapper):
             image = np.expand_dims(image, axis=-1)
         if image.shape[0] < image.shape[-1]:
             image = np.transpose(image, (1, 2, 0))
+        if image.shape[-1] > 3:
+            image = np.max(image, axis=-1)
+            image = np.expand_dims(image, axis=-1)
         if image.shape[-1] == 1:
             image = np.repeat(image, 3, axis=-1)
 
@@ -126,11 +208,11 @@ class BoxDetectionLoader(DatasetMapper):
 
         # Convert boxes back to detectron2 annotation format.
         annos = []
-        for box in boxes:
+        for n, box in enumerate(boxes):
             obj = {
                 "bbox": [box.x1, box.y1, box.x2, box.y2],
                 "bbox_mode": BoxMode.XYXY_ABS,
-                "segmentation": [],
+                "segmentation": dataset_dict["annotations"][n]["segmentation"],
                 "category_id":  box.label,
                 "iscrowd": 0
             }
