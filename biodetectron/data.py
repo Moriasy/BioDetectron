@@ -86,7 +86,7 @@ def get_masks(root_dir):
         record["height"] = height
         record["width"] = width
 
-        splitname = os.path.splitext(filename.replace('train', 'masks').replace('val', 'masks').replace('cmle_3', 'cmle'))
+        splitname = os.path.splitext(filename.replace('train', 'masks').replace('val', 'masks'))
 
         #### ATP6_NG
         mask = imread(splitname[0] + '_ATP6-NG' + splitname[1])
@@ -160,18 +160,23 @@ class BoxDetectionLoader(DatasetMapper):
 
         # Read image and reshape it to always be [h, w, 3].
         image = imread(dataset_dict["file_name"])
-        if len(image.shape) < 3:
+
+        ### NOT GENERALIZED YET!
+        if len(image.shape) > 3:
+            image = np.max(image, axis=0)
+        elif len(image.shape) < 3:
             image = np.expand_dims(image, axis=-1)
         if image.shape[0] < image.shape[-1]:
             image = np.transpose(image, (1, 2, 0))
-        if image.shape[-1] > 3:
-            image = np.max(image, axis=-1)
-            image = np.expand_dims(image, axis=-1)
         if image.shape[-1] == 1:
             image = np.repeat(image, 3, axis=-1)
 
         utils.check_image_size(dataset_dict, image)
         image_shape = image.shape[:2]  # h, w
+
+        if 0 in self.cfg.MODEL.PIXEL_MEAN and 1 in self.cfg.MODEL.PIXEL_STD:
+            image = image.astype(np.float32)
+            image = rescale_intensity(image)
 
         if not self.is_train:
             dataset_dict['gt_image'] = image
@@ -198,10 +203,6 @@ class BoxDetectionLoader(DatasetMapper):
             image, boxes = seq(image=image, bounding_boxes=boxes)
         else:
             image, _ = seq(image=image, bounding_boxes=boxes)
-
-        if 0 in self.cfg.MODEL.PIXEL_MEAN and 1 in self.cfg.MODEL.PIXEL_STD:
-            image = image.astype(np.float32)
-            image = rescale_intensity(image)
 
         # Convert image to tensor for pytorch model.
         dataset_dict["image"] = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))

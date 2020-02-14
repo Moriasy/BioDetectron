@@ -154,12 +154,12 @@ def register_custom_datasets():
     path_dict["israel"] = dict_getter.train_path
 
     DatasetCatalog.register("israel", dict_getter.get_train_dicts)
-    MetadataCatalog.get("israel").thing_classes = ["mother", "daughter"]
-    MetadataCatalog.get("israel").thing_dataset_id_to_contiguous_id = {0:0, 1:0, 2:1}
+    MetadataCatalog.get("israel").thing_classes = ["motherATP", "motherKate", "daughter"]
+    MetadataCatalog.get("israel").thing_dataset_id_to_contiguous_id = {0:0, 1:1, 2:2}
 
-    DatasetCatalog.register("israel_val", dict_getter.get_train_dicts)
-    MetadataCatalog.get("israel_val").thing_classes = ["mother", "daughter"]
-    MetadataCatalog.get("israel_val").thing_dataset_id_to_contiguous_id = {0:0, 1:0, 2:1}
+    DatasetCatalog.register("israel_val", dict_getter.get_val_dicts)
+    MetadataCatalog.get("israel_val").thing_classes = ["motherATP", "motherKate", "daughter"]
+    MetadataCatalog.get("israel_val").thing_dataset_id_to_contiguous_id = {0:0, 1:1, 2:2}
 
     ####### WEN DATA
     dict_getter = DictGetter("wen", train_path='/scratch/bunk/wen/COCO/DIR/train2014',
