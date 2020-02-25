@@ -62,20 +62,22 @@ def get_mean_std(folder):
     for idx, path in enumerate(imglist):
         image = imread(path)
 
+        if len(image.shape) > 3:
+            image = np.max(image, axis=0)
         if len(image.shape) == 2:
             image = np.expand_dims(image, axis=-1)
         if image.shape[-1] == 1:
             image = np.repeat(image, 3, axis=-1)
 
-            for n in range(image.shape[-1]):
-                if idx == 0:
-                    means.append([])
-                    stds.append([])
+        for n in range(image.shape[-1]):
+            if idx == 0:
+                means.append([])
+                stds.append([])
 
-                img = image[:, :, n]
+            img = image[:, :, n]
 
-                means[n].append(np.mean(img))
-                stds[n].append(np.std(img))
+            means[n].append(np.mean(img))
+            stds[n].append(np.std(img))
 
     for n in range(image.shape[-1]):
         mean.append(float(np.round(np.mean(means[n]), 2)))
@@ -113,17 +115,26 @@ def coco2csv(dataDir, dataType, annFile, mask=False):
         df.to_csv(os.path.join(dataDir, dataType, os.path.splitext(path)[0] + '.csv'))
 
 
-def box2csv(boxes, labels, scores, path):
-    df = {'category_id': [], 'x1': [], 'y1': [], 'x2': [], 'y2': [], 'score': []}
+def box2csv(path, boxes, labels=None, scores=None):
+    df = {'x1': [], 'y1': [], 'x2': [], 'y2': []}
+
+    if scores is not None:
+        df['score'] = []
+
+    if labels is not None:
+        df['category_id'] = []
 
     for n in range(len(labels)):
         df['x1'].append(int(boxes[n][0]))
         df['y1'].append(int(boxes[n][1]))
         df['x2'].append(int(boxes[n][2]))
         df['y2'].append(int(boxes[n][3]))
-
-        df['category_id'].append(labels[n])
-        df['score'].append(scores[n])
+        
+        if labels is not None:
+            df['category_id'].append(labels[n])
+        
+        if scores is not None: 
+            df['score'].append(scores[n])
 
     df = DataFrame(df)
     df.to_csv(path)
