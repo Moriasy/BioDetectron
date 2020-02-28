@@ -17,7 +17,7 @@ from detectron2.data import DatasetMapper, MetadataCatalog, detection_utils as u
 from biodetectron.datasets import get_custom_augmenters
 
 
-def get_csv(root_dir, dataset, suffix='', do_mapping=True):
+def get_csv(root_dir, dataset, suffix='', scaling=True, do_mapping=True):
     imglist = glob(os.path.join(root_dir, '*.jpg')) + \
                     glob(os.path.join(root_dir, '*.tif')) + \
                     glob(os.path.join(root_dir, '*.png'))
@@ -28,13 +28,8 @@ def get_csv(root_dir, dataset, suffix='', do_mapping=True):
     for idx, filename in enumerate(imglist):
         record = {}
 
-        ### THIS IS UNEFFICIENT
-        height, width = imread(filename).shape[:2]
-
         record["file_name"] = filename
         record["image_id"] = idx
-        record["height"] = height
-        record["width"] = width
 
         targets = pd.read_csv(imglist[idx].replace('.jpg', suffix + '.csv').replace('.tif', suffix + '.csv').replace('.png', suffix + '.csv'))
 
@@ -50,8 +45,24 @@ def get_csv(root_dir, dataset, suffix='', do_mapping=True):
         for row in targets.itertuples():
             category_id = mapping[row.category_id] if mapping is not None else row.category_id
 
+            x1 = row.x1
+            x2 = row.x2
+            y1 = row.y1
+            y2 = row.y2
+            
+            if scaling:
+                scaling_factor = 0.5
+
+                width = x2 - x1
+                height = y2 - y1
+
+                x1 = x1 + width * scaling_factor / 2
+                x2 = x2 - width * scaling_factor / 2
+                y1 = y1 + width * scaling_factor / 2
+                y2 = y2 - width * scaling_factor / 2
+
             obj = {
-                "bbox": [row.x1, row.y1, row.x2, row.y2],
+                "bbox": [x1, y1, x2, y2],
                 "bbox_mode": BoxMode.XYXY_ABS,
                 "segmentation": [],
                 "category_id":  category_id,
@@ -81,6 +92,8 @@ class BoxDetectionLoader(DatasetMapper):
 
         # Read image and reshape it to always be [h, w, 3].
         image = imread(dataset_dict["file_name"])
+        if len(image.shape) > 3:
+            image = np.max(image, axis=0)
         if len(image.shape) < 3:
             image = np.expand_dims(image, axis=-1)
         if image.shape[0] < image.shape[-1]:
@@ -88,11 +101,16 @@ class BoxDetectionLoader(DatasetMapper):
         if image.shape[-1] == 1:
             image = np.repeat(image, 3, axis=-1)
 
-        utils.check_image_size(dataset_dict, image)
         image_shape = image.shape[:2]  # h, w
+        dataset_dict['height'] = image_shape[0]
+        dataset_dict['width'] = image_shape[1]
+
+        if 0 in self.cfg.MODEL.PIXEL_MEAN and 1 in self.cfg.MODEL.PIXEL_STD:
+            image = image.astype(np.float32)
+            image = rescale_intensity(image)
 
         if not self.is_train:
-            dataset_dict['gt_image'] = image
+            dataset_dict['gt_image'] = np.expand_dims(image[:,:,0], axis=-1)
 
         # Convert bounding boxes to imgaug format for augmentation.
         boxes = []
@@ -116,10 +134,6 @@ class BoxDetectionLoader(DatasetMapper):
             image, boxes = seq(image=image, bounding_boxes=boxes)
         else:
             image, _ = seq(image=image, bounding_boxes=boxes)
-
-        if 0 in self.cfg.MODEL.PIXEL_MEAN and 1 in self.cfg.MODEL.PIXEL_STD:
-            image = image.astype(np.float32)
-            image = rescale_intensity(image)
 
         # Convert image to tensor for pytorch model.
         dataset_dict["image"] = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
@@ -148,6 +162,3 @@ class BoxDetectionLoader(DatasetMapper):
         dataset_dict["instances"] = utils.filter_empty_instances(instances, by_mask=False)
 
         return dataset_dict
-
-
-
