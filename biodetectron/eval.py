@@ -174,34 +174,24 @@ class BboxPredictor():
         checkpointer.load(self.cfg.MODEL.WEIGHTS)
 
     def preprocess_img(self, image, norm=False, graytrain=True):
-        image = rescale_intensity(image, in_range='dtype', out_range='uint8')
-        image = image.astype(np.uint8)
+        # if len(image.shape) < 3:
+        #     image = np.expand_dims(image, axis=-1)
+        #     image = np.repeat(image, 3, axis=-1)
+        # elif image.shape[-1] == 1:
+        #     image = np.repeat(image, 3, axis=-1)
+        # else:
+        #     if graytrain:
+        #         image = rgb2gray(image)
 
-        if len(image.shape) < 3:
-            image = np.expand_dims(image, axis=-1)
-            image = np.repeat(image, 3, axis=-1)
-        elif image.shape[-1] == 1:
-            image = np.repeat(image, 3, axis=-1)
-        else:
-            if graytrain:
-                image = rgb2gray(image)
+        image = np.max(image, axis=0)
+        image = np.asarray([image[:,:,2], image[:,:,0], image[:,:,1]])
 
-        height, width = image.shape[:2]
+        height, width = image.shape[1:3]
 
-        seq = get_custom_augmenters(
-            self.cfg.DATASETS.TRAIN,
-            self.cfg.INPUT.MAX_SIZE_TRAIN,
-            False,
-            image.shape
-        )
+        image = image.astype(np.float32)
+        image = rescale_intensity(image)
 
-        image = seq(image=image)
-
-        if norm:
-            image = image.astype(np.float32)
-            image = rescale_intensity(image)
-
-        image = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
+        image = torch.as_tensor(image.astype("float32"))
         image = {"image": image, "height": height, "width": width}
 
         return image
@@ -213,21 +203,21 @@ class BboxPredictor():
 
         imglist= []
         boxlist = []
+        masklist = []
         classlist = []
         scorelist= []
         for path in pathlist:
             image = imread(path)
 
-            boxes, classes, scores = self.detect_one_image(image, norm=norm, check_iou=check_iou, graytrain=graytrain)
+            boxes, masks, classes, scores = self.detect_one_image(image, norm=norm, check_iou=check_iou, graytrain=graytrain)
             boxlist.append(boxes)
+            masklist.append(masks)
             classlist.append(classes)
             scorelist.append(scores)
             imglist.append(image)
 
-            if saving:
-                box2csv(boxes, classes, scores, os.path.splitext(path)[0] + '_predict.csv')
 
-        return pathlist, imglist, boxlist, classlist, scorelist
+        return pathlist, imglist, boxlist, masklist, classlist, scorelist
 
 
     def detect_one_image(self, image, norm=False, check_iou=True, graytrain=True):
@@ -239,6 +229,9 @@ class BboxPredictor():
         boxes = list(instances.pred_boxes)
         boxes = [tuple(box.cpu().numpy()) for box in boxes]
 
+        masks = list(instances.pred_masks)
+        masks = [tuple(mask.cpu().numpy()) for mask in masks]
+
         scores = list(instances.scores)
         scores = [score.cpu().numpy() for score in scores]
 
@@ -248,7 +241,7 @@ class BboxPredictor():
         if check_iou:
             boxes, classes, scores = self.check_iou(boxes, scores, classes)
 
-        return boxes, classes, scores
+        return boxes, masks, classes, scores
 
     @staticmethod
     def bb_intersection_over_union(boxA, boxB):
