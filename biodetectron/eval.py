@@ -328,10 +328,13 @@ class MaskPredictor(BasePredictor):
         checkpointer = DetectionCheckpointer(self.model)
         checkpointer.load(self.cfg.MODEL.WEIGHTS)
 
-    def preprocess_img(self, image, norm=False, graytrain=True):
-        image = np.max(image, axis=0)
-        image = image.astype(np.float32)
-        image = rescale_intensity(image)
+    def preprocess_img(self, image, norm=False, zproject=True, graytrain=True):
+        if zproject:
+            image = np.max(image, axis=0)
+
+        if norm:
+            image = image.astype(np.float32)
+            image = rescale_intensity(image)
 
         height, width = image.shape[0:2]
         image = torch.as_tensor(image.transpose(2,0,1).astype("float32"))  
@@ -339,51 +342,26 @@ class MaskPredictor(BasePredictor):
 
         return image
 
-    def inference_on_folder(self, folder, saving=True, norm=False, check_iou=True, graytrain=True):
+    def inference_on_folder(self, channel_order, folder, saving=True, zproject=True, norm=False, check_iou=True, graytrain=True):
         pathlist = glob(os.path.join(folder, '*.jpg')) + \
                   glob(os.path.join(folder, '*.tif')) + \
                   glob(os.path.join(folder, '*.png'))
 
         imglist= []
-        boxlist = []
-        masklist = []
-        classlist = []
-        scorelist= []
+        panlist = []
         for path in pathlist:
             image = imread(path)
 
-            boxes, masks, classes, scores = self.detect_one_image(image, norm=norm, check_iou=check_iou, graytrain=graytrain)
-            boxlist.append(boxes)
-            masklist.append(masks)
-            classlist.append(classes)
-            scorelist.append(scores)
+            pan = self.detect_one_image(image, zproject=zproject, norm=norm, graytrain=graytrain)
             imglist.append(image)
+            panlist.appen(pan)
+
+        return pathlist, imglist, panlist
 
 
-        return pathlist, imglist, boxlist, masklist, classlist, scorelist
-
-
-    def detect_one_image(self, image, norm=False, check_iou=True, graytrain=True):
-        image = self.preprocess_img(image, norm=norm, graytrain=graytrain)
+    def detect_one_image(self, image, zproject=True, norm=False, check_iou=True, graytrain=True):
+        image = self.preprocess_img(image, zproject=zproject, norm=norm, graytrain=graytrain)
 
         with torch.no_grad():
-            instances = self.model([image])[0]["instances"]
-            sem = self.model([image])[0]["sem_seg"]
-            pan = self.model([image])[0]["panoptic_seg"]
+            return self.model([image])[0]["panoptic_seg"]
 
-        boxes = list(instances.pred_boxes)
-        boxes = [tuple(box.cpu().numpy()) for box in boxes]
-
-        masks = list(instances.pred_masks)
-        masks = [tuple(mask.cpu().numpy()) for mask in masks]
-
-        scores = list(instances.scores)
-        scores = [score.cpu().numpy() for score in scores]
-
-        classes = list(instances.pred_classes)
-        classes = [cls.cpu().numpy() for cls in classes]
-
-        if check_iou:
-            boxes, classes, scores = self.check_iou(boxes, scores, classes)
-
-        return sem, pan, boxes, masks, classes, scores
