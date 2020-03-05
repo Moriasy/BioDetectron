@@ -43,7 +43,7 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
     elif "wen" in name:
         if is_train:
             seq = iaa.Sequential([
-                iaa.CropToFixedSize(width=max_size, height=max_size),
+                iaa.CropToFixedSize(height=max_size, width=max_size),
                 iaa.Fliplr(0.5),
                 iaa.Flipud(0.5),
                 iaa.Rot90(k=(0, 3)),
@@ -51,7 +51,7 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
                     rotate=(-45, 45),
                     backend='skimage'
                 ),
-                iaa.Sometimes(0.33, iaa.GammaContrast(gamma=(0.8, 1.2))),
+                iaa.Sometimes(0.5, iaa.GammaContrast(gamma=(0.8, 1.2))),
                 iaa.Sometimes(0.5, iaa.Multiply(mul=(0.75, 1.25))),
             ])
 
