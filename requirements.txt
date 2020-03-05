@@ -1,4 +1,4 @@
-git+git://github.com/facebookresearch/detectron2@54d8e798ade481274387779018969f388dd0443d
+git+git://github.com/facebookresearch/detectron2@v0.1.1
 pandas==0.24.2
 scikit-image==0.16.2
 imgaug==0.3.0

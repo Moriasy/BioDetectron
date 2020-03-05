@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="biodetectron",
-    version="0.3.2",
+    version="0.5.0",
     author="David Bunk",
     author_email="bunk@bio.lmu.de",
     description="Machine learning framework for biological image analysis.",
