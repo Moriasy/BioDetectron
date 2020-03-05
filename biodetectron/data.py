@@ -150,7 +150,7 @@ def get_masks(root_dir):
     return dataset_dicts
 
 
-class BoxDetectionLoader(DatasetMapper):
+class MaskDetectionLoader(DatasetMapper):
     def __init__(self, cfg, is_train=True, mask_format="bitmask"):
         super().__init__(cfg, is_train=is_train)
         self.cfg = cfg

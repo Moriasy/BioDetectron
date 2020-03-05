@@ -159,7 +159,7 @@ class GenericEvaluator(DatasetEvaluator):
         return
 
 
-class BboxPredictor():
+class MaskPredictor():
     def __init__(self, cfg, weights=None):
         self.cfg = get_cfg()
         self.cfg.merge_from_file(cfg)
