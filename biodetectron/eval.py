@@ -17,10 +17,10 @@ from detectron2.config import get_cfg
 from detectron2.engine import HookBase
 from detectron2.data import MetadataCatalog
 from detectron2.utils.visualizer import Visualizer
-from detectron2.modeling import GeneralizedRCNN
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.events import get_event_storage
 from detectron2.checkpoint import DetectionCheckpointer
+from detectron2.modeling import GeneralizedRCNN, PanopticFPN
 
 from biodetectron.utils import box2csv
 from biodetectron.datasets import get_custom_augmenters
@@ -167,7 +167,8 @@ class BboxPredictor():
         if weights is not None:
             self.cfg.MODEL.WEIGHTS = weights
 
-        self.model = GeneralizedRCNN(self.cfg)
+        #self.model = GeneralizedRCNN(self.cfg)
+        self.model = PanopticFPN(self.cfg)
         self.model.eval()
 
         checkpointer = DetectionCheckpointer(self.model)
@@ -184,14 +185,14 @@ class BboxPredictor():
         #         image = rgb2gray(image)
 
         image = np.max(image, axis=0)
-        image = np.asarray([image[:,:,2], image[:,:,0], image[:,:,1]])
+        #image = np.asarray([image[:,:,2], image[:,:,0], image[:,:,1]])
 
-        height, width = image.shape[1:3]
+        height, width = image.shape[0:2]
 
         image = image.astype(np.float32)
         image = rescale_intensity(image)
 
-        image = torch.as_tensor(image.astype("float32"))
+        image = torch.as_tensor(image.transpose(2,0,1).astype("float32"))  
         image = {"image": image, "height": height, "width": width}
 
         return image
@@ -225,6 +226,8 @@ class BboxPredictor():
 
         with torch.no_grad():
             instances = self.model([image])[0]["instances"]
+            sem = self.model([image])[0]["sem_seg"]
+            pan = self.model([image])[0]["panoptic_seg"]
 
         boxes = list(instances.pred_boxes)
         boxes = [tuple(box.cpu().numpy()) for box in boxes]
@@ -241,7 +244,7 @@ class BboxPredictor():
         if check_iou:
             boxes, classes, scores = self.check_iou(boxes, scores, classes)
 
-        return boxes, masks, classes, scores
+        return sem, pan, boxes, masks, classes, scores
 
     @staticmethod
     def bb_intersection_over_union(boxA, boxB):

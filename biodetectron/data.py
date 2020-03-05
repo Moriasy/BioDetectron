@@ -92,6 +92,9 @@ def get_masks(root_dir):
         mask = imread(splitname[0] + '_ATP6-NG' + splitname[1])
         rle_mask = cocomask.encode(np.asfortranarray(mask))
 
+        fullmask = np.zeros_like(mask, dtype=np.int16)
+        fullmask[mask!=0] = 1 
+
         box = regionprops(mask)[0].bbox
         box = [box[1], box[0], box[3], box[2]]
 
@@ -107,6 +110,8 @@ def get_masks(root_dir):
         ##### mtKate2
         mask = imread(splitname[0] + '_mtKate2' + splitname[1])
         rle_mask = cocomask.encode(np.asfortranarray(mask))
+
+        fullmask[mask!=0] = 2
 
         box = regionprops(mask)[0].bbox
         box = [box[1], box[0], box[3], box[2]]
@@ -127,6 +132,8 @@ def get_masks(root_dir):
         box = regionprops(mask)[0].bbox
         box = [box[1], box[0], box[3], box[2]]
 
+        fullmask[mask!=0] = 3
+
         obj = {
             "bbox": box,
             "bbox_mode": BoxMode.XYXY_ABS,
@@ -137,6 +144,7 @@ def get_masks(root_dir):
         objs.append(obj)
 
         record["annotations"] = objs
+        record["sem_seg"] = torch.as_tensor(fullmask).long()
         dataset_dicts.append(record)
 
     return dataset_dicts

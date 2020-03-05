@@ -6,10 +6,10 @@ import detectron2.utils.comm as comm
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
 from detectron2.utils.visualizer import Visualizer
-from detectron2.modeling import GeneralizedRCNN
 from detectron2.evaluation import DatasetEvaluators
 from detectron2.utils.events import get_event_storage
 from detectron2.checkpoint import DetectionCheckpointer
+from detectron2.modeling import GeneralizedRCNN, PanopticFPN
 from detectron2.data.datasets import load_coco_json, register_coco_instances
 from detectron2.engine import default_argument_parser, DefaultTrainer, launch, default_setup
 from detectron2.data import build_detection_test_loader, build_detection_train_loader, DatasetMapper
@@ -34,9 +34,9 @@ class Trainer(DefaultTrainer):
     def build_train_loader(cls, cfg):
         return build_detection_train_loader(cfg, mapper=BoxDetectionLoader(cfg, True))
 
-    @classmethod
-    def build_model(cls, cfg):
-        return VisRCNN(cfg)
+    # @classmethod
+    # def build_model(cls, cfg):
+    #     return VisRCNN(cfg)
 
 
 class VisRCNN(GeneralizedRCNN):

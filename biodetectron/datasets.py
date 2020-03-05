@@ -148,8 +148,8 @@ def register_custom_datasets():
     MetadataCatalog.get("osman_val").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:1, 4:2}
 
     ######## ISRAEL YEAST DATA
-    dict_getter = DictGetter("israel", train_path='/scratch/bunk/osman/israel/Rootfolder/Added_Slices/train',
-                             val_path='/scratch/bunk/osman/israel/Rootfolder/Added_Slices/val', mask=True)
+    dict_getter = DictGetter("israel", train_path='/scratch/bunk/osman/israel/train',
+                             val_path='/scratch/bunk/osman/israel/val', mask=True)
 
     path_dict["israel"] = dict_getter.train_path
 
