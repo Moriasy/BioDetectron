@@ -342,7 +342,7 @@ class MaskPredictor(BasePredictor):
 
         return image
 
-    def inference_on_folder(self, channel_order, folder, saving=True, zproject=True, norm=False, check_iou=True, graytrain=True):
+    def inference_on_folder(self, channel_order, folder, saving=True, zproject=True, norm=False, graytrain=True):
         pathlist = glob(os.path.join(folder, '*.jpg')) + \
                   glob(os.path.join(folder, '*.tif')) + \
                   glob(os.path.join(folder, '*.png'))
@@ -359,7 +359,7 @@ class MaskPredictor(BasePredictor):
         return pathlist, imglist, panlist
 
 
-    def detect_one_image(self, image, zproject=True, norm=False, check_iou=True, graytrain=True):
+    def detect_one_image(self, image, zproject=True, norm=False, graytrain=True):
         image = self.preprocess_img(image, zproject=zproject, norm=norm, graytrain=graytrain)
 
         with torch.no_grad():
