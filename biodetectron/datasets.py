@@ -10,7 +10,7 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
         resize = iaa.Resize({"height": "keep-aspect-ratio", "width": max_size})
         crop = iaa.CropToFixedSize(width=image_shape[1], height=None)
 
-    # ####### OSMAN DATA
+    ######## OSMAN DATA
     if "osman" in name:
         if is_train:
             seq = iaa.Sequential([
@@ -30,8 +30,19 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
                 resize,
             ])
 
+    ######## ISRAEL YEAST DATA
+    elif "israel" in name:
+        if is_train:
+            seq = iaa.Sequential([
 
-    # ####### WEN DATA
+            ])
+
+        else:
+            seq = iaa. Sequential([
+
+            ])
+
+    ######## WEN DATA
     elif "wen" in name:
         if is_train:
             seq = iaa.Sequential([
@@ -49,10 +60,11 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
 
         else:
             seq = iaa.Sequential([
+
             ])
 
 
-    # ####### WING DATA
+    ######## WING DATA
     elif "wings" in name:
         if is_train:
             seq = iaa.Sequential([
@@ -73,6 +85,9 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
             seq = iaa.Sequential([
                 resize,
             ])
+
+
+    ######## ELSE
     else:
         if is_train:
             seq = iaa.Sequential([
@@ -91,22 +106,29 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
 
 
 class DictGetter:
-    def __init__(self, dataset, train_path=None, val_path=None):
+    def __init__(self, dataset, train_path=None, val_path=None, mask=False):
         self.dataset = dataset
         self.train_path = train_path
         self.val_path = val_path
+        self.mask = mask
 
     def get_train_dicts(self):
-        from data import get_csv
+        from data import get_csv, get_masks
         if self.train_path:
-            return get_csv(self.train_path, self.dataset)
+            if self.mask:
+                return get_masks(self.train_path)
+            else:
+                return get_csv(self.train_path, self.dataset)
         else:
             raise ValueError("Training data path is not set!")
 
     def get_val_dicts(self):
-        from data import get_csv
+        from data import get_csv, get_masks
         if self.val_path:
-            return get_csv(self.val_path, self.dataset)
+            if self.mask:
+                return get_masks(self.val_path)
+            else:
+                return get_csv(self.val_path, self.dataset)
         else:
             raise ValueError("Validation data path is not set!")
 
@@ -141,6 +163,20 @@ def register_custom_datasets():
     DatasetCatalog.register("leonie_val", dict_getter.get_val_dicts)
     MetadataCatalog.get("leonie_val").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
     MetadataCatalog.get("leonie_val").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3}
+
+    ######## ISRAEL YEAST DATA
+    dict_getter = DictGetter("israel", train_path='/scratch/bunk/osman/israel/train',
+                             val_path='/scratch/bunk/osman/israel/val', mask=True)
+
+    path_dict["israel"] = dict_getter.train_path
+
+    DatasetCatalog.register("israel", dict_getter.get_train_dicts)
+    MetadataCatalog.get("israel").thing_classes = ["motherATP", "motherKate", "daughter"]
+    MetadataCatalog.get("israel").thing_dataset_id_to_contiguous_id = {0:0, 1:1, 2:2}
+
+    DatasetCatalog.register("israel_val", dict_getter.get_val_dicts)
+    MetadataCatalog.get("israel_val").thing_classes = ["motherATP", "motherKate", "daughter"]
+    MetadataCatalog.get("israel_val").thing_dataset_id_to_contiguous_id = {0:0, 1:1, 2:2}
 
     ####### WEN DATA
     dict_getter = DictGetter("wen", train_path='/scratch/bunk/wen/COCO/DIR/train2014',

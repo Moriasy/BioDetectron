@@ -17,10 +17,10 @@ from detectron2.config import get_cfg
 from detectron2.engine import HookBase
 from detectron2.data import MetadataCatalog
 from detectron2.utils.visualizer import Visualizer
-from detectron2.modeling import GeneralizedRCNN
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.events import get_event_storage
 from detectron2.checkpoint import DetectionCheckpointer
+from detectron2.modeling import GeneralizedRCNN, PanopticFPN
 
 from biodetectron.utils import box2csv
 from biodetectron.datasets import get_custom_augmenters
@@ -159,7 +159,73 @@ class GenericEvaluator(DatasetEvaluator):
         return
 
 
-class BboxPredictor():
+class BasePredictor:
+    @staticmethod
+    def bb_intersection_over_union(boxA, boxB):
+        # from https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
+
+        # determine the (x, y)-coordinates of the intersection rectangle
+        xA = max(boxA[0], boxB[0])
+        yA = max(boxA[1], boxB[1])
+        xB = min(boxA[2], boxB[2])
+        yB = min(boxA[3], boxB[3])
+
+        # compute the area of intersection rectangle
+        interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+
+        # compute the area of both the prediction and ground-truth
+        # rectangles
+        boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
+        boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+
+        # compute the intersection over union by taking the intersection
+        # area and dividing it by the sum of prediction + ground-truth
+        # areas - the interesection area
+        iou = interArea / float(boxAArea + boxBArea - interArea)
+
+        # return the intersection over union value
+        return iou
+
+    def check_iou(self, boxes, scores, classes):
+        if len(boxes) <= 1:
+            return boxes, classes, scores
+
+        while True:
+            new_boxes = []
+            new_scores = []
+            new_classes = []
+            overlap_boxes = []
+
+            indices = list((i,j) for ((i,_),(j,_)) in combinations(enumerate(boxes), 2))
+
+            for a,b in indices:
+                iou = self.bb_intersection_over_union(boxes[a], boxes[b])
+
+                if iou > 0.5:
+                    if scores[a] > scores[b]:
+                        overlap_boxes.append(b)
+                    else:
+                        overlap_boxes.append(a)
+                    break
+
+
+            for idx in range(len(boxes)):
+                if idx not in overlap_boxes:
+                    new_boxes.append(boxes[idx])
+                    new_scores.append(scores[idx])
+                    new_classes.append(classes[idx])
+
+            if len(new_boxes) == len(boxes) or len(new_boxes) <= 1:
+                break
+
+            boxes = new_boxes
+            scores = new_scores
+            classes = new_classes
+
+        return new_boxes, new_classes, new_scores
+
+
+class BboxPredictor(BasePredictor):
     def __init__(self, cfg, weights=None):
         self.cfg = get_cfg()
         self.cfg.merge_from_file(cfg)
@@ -227,7 +293,6 @@ class BboxPredictor():
 
         return pathlist, imglist, boxlist, classlist, scorelist
 
-
     def detect_one_image(self, image, norm=False, check_iou=True, augment=False, graytrain=True):
         image = self.preprocess_img(image, norm=norm, graytrain=graytrain, augment=augment)
 
@@ -248,67 +313,77 @@ class BboxPredictor():
 
         return boxes, classes, scores
 
-    @staticmethod
-    def bb_intersection_over_union(boxA, boxB):
-        # from https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
+class MaskPredictor(BasePredictor):
+    def __init__(self, cfg, weights=None):
+        self.cfg = get_cfg()
+        self.cfg.merge_from_file(cfg)
 
-        # determine the (x, y)-coordinates of the intersection rectangle
-        xA = max(boxA[0], boxB[0])
-        yA = max(boxA[1], boxB[1])
-        xB = min(boxA[2], boxB[2])
-        yB = min(boxA[3], boxB[3])
+        if weights is not None:
+            self.cfg.MODEL.WEIGHTS = weights
 
-        # compute the area of intersection rectangle
-        interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+        #self.model = GeneralizedRCNN(self.cfg)
+        self.model = PanopticFPN(self.cfg)
+        self.model.eval()
 
-        # compute the area of both the prediction and ground-truth
-        # rectangles
-        boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
-        boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+        checkpointer = DetectionCheckpointer(self.model)
+        checkpointer.load(self.cfg.MODEL.WEIGHTS)
 
-        # compute the intersection over union by taking the intersection
-        # area and dividing it by the sum of prediction + ground-truth
-        # areas - the interesection area
-        iou = interArea / float(boxAArea + boxBArea - interArea)
+    def preprocess_img(self, image, norm=False, graytrain=True):
+        image = np.max(image, axis=0)
+        image = image.astype(np.float32)
+        image = rescale_intensity(image)
 
-        # return the intersection over union value
-        return iou
+        height, width = image.shape[0:2]
+        image = torch.as_tensor(image.transpose(2,0,1).astype("float32"))  
+        image = {"image": image, "height": height, "width": width}
 
-    def check_iou(self, boxes, scores, classes):
-        if len(boxes) <= 1:
-            return boxes, classes, scores
+        return image
 
-        while True:
-            new_boxes = []
-            new_scores = []
-            new_classes = []
-            overlap_boxes = []
+    def inference_on_folder(self, folder, saving=True, norm=False, check_iou=True, graytrain=True):
+        pathlist = glob(os.path.join(folder, '*.jpg')) + \
+                  glob(os.path.join(folder, '*.tif')) + \
+                  glob(os.path.join(folder, '*.png'))
 
-            indices = list((i,j) for ((i,_),(j,_)) in combinations(enumerate(boxes), 2))
+        imglist= []
+        boxlist = []
+        masklist = []
+        classlist = []
+        scorelist= []
+        for path in pathlist:
+            image = imread(path)
 
-            for a,b in indices:
-                iou = self.bb_intersection_over_union(boxes[a], boxes[b])
-
-                if iou > 0.5:
-                    if scores[a] > scores[b]:
-                        overlap_boxes.append(b)
-                    else:
-                        overlap_boxes.append(a)
-                    break
+            boxes, masks, classes, scores = self.detect_one_image(image, norm=norm, check_iou=check_iou, graytrain=graytrain)
+            boxlist.append(boxes)
+            masklist.append(masks)
+            classlist.append(classes)
+            scorelist.append(scores)
+            imglist.append(image)
 
 
-            for idx in range(len(boxes)):
-                if idx not in overlap_boxes:
-                    new_boxes.append(boxes[idx])
-                    new_scores.append(scores[idx])
-                    new_classes.append(classes[idx])
+        return pathlist, imglist, boxlist, masklist, classlist, scorelist
 
-            if len(new_boxes) == len(boxes) or len(new_boxes) <= 1:
-                break
 
-            boxes = new_boxes
-            scores = new_scores
-            classes = new_classes
+    def detect_one_image(self, image, norm=False, check_iou=True, graytrain=True):
+        image = self.preprocess_img(image, norm=norm, graytrain=graytrain)
 
-        return new_boxes, new_classes, new_scores
+        with torch.no_grad():
+            instances = self.model([image])[0]["instances"]
+            sem = self.model([image])[0]["sem_seg"]
+            pan = self.model([image])[0]["panoptic_seg"]
 
+        boxes = list(instances.pred_boxes)
+        boxes = [tuple(box.cpu().numpy()) for box in boxes]
+
+        masks = list(instances.pred_masks)
+        masks = [tuple(mask.cpu().numpy()) for mask in masks]
+
+        scores = list(instances.scores)
+        scores = [score.cpu().numpy() for score in scores]
+
+        classes = list(instances.pred_classes)
+        classes = [cls.cpu().numpy() for cls in classes]
+
+        if check_iou:
+            boxes, classes, scores = self.check_iou(boxes, scores, classes)
+
+        return sem, pan, boxes, masks, classes, scores
