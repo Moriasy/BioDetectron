@@ -6,7 +6,6 @@ RUN apt-get update && apt-get install -y \
   rm -rf /var/lib/apt/lists/*
 
 # Install python
-ENV PATH="/home/appuser/.local/bin:${PATH}"
 RUN wget https://bootstrap.pypa.io/get-pip.py && \
 	python3 get-pip.py && \
 	rm get-pip.py
