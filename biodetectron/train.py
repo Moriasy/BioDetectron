@@ -14,9 +14,9 @@ from detectron2.data.datasets import load_coco_json, register_coco_instances
 from detectron2.engine import default_argument_parser, DefaultTrainer, launch, default_setup
 from detectron2.data import build_detection_test_loader, build_detection_train_loader, DatasetMapper
 
+from biodetectron.data import BoxDetectionLoader, MaskDetectionLoader
 from biodetectron.datasets import register_custom_datasets
 from biodetectron.utils import copy_code, get_mean_std
-from biodetectron.data import BoxDetectionLoader
 from biodetectron.eval import GenericEvaluator
 
 
@@ -28,11 +28,17 @@ class Trainer(DefaultTrainer):
 
     @classmethod
     def build_test_loader(cls, cfg, dataset_name):
-        return build_detection_test_loader(cfg, dataset_name, mapper=BoxDetectionLoader(cfg, False))
+        if cfg.MODEL.MASK_ON:
+            return build_detection_test_loader(cfg, dataset_name, mapper=MaskDetectionLoader(cfg, False))
+        else:
+            return build_detection_test_loader(cfg, dataset_name, mapper=BoxDetectionLoader(cfg, False))
 
     @classmethod
     def build_train_loader(cls, cfg):
-        return build_detection_train_loader(cfg, mapper=BoxDetectionLoader(cfg, True))
+        if cfg.MODEL.MASK_ON:
+            return build_detection_train_loader(cfg, mapper=MaskDetectionLoader(cfg, True))
+        else:
+            return build_detection_train_loader(cfg, mapper=BoxDetectionLoader(cfg, True))
 
 
 def setup(args):
@@ -63,16 +69,6 @@ def setup(args):
 
 def main(args):
     cfg = setup(args)
-
-    if args.eval_only:
-        model = Trainer.build_model(cfg)
-        DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
-            cfg.MODEL.WEIGHTS, resume=args.resume
-        )
-        res = Trainer.test(cfg, model)
-        # if comm.is_main_process():
-        #     verify_results(cfg, res)
-        return res
 
     trainer = Trainer(cfg)
     trainer.resume_or_load()
