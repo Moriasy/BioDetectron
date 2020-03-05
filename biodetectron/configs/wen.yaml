@@ -12,17 +12,17 @@ MODEL:
     IN_FEATURES: ["res2", "res3", "res4", "res5"]
     NORM: "GN"
   ANCHOR_GENERATOR:
-    SIZES: [[8], [16], [24], [32], [40]]  # One size for each in feature map
+    SIZES: [[32], [48], [56], [64], [72]]  # One size for each in feature map
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
   RPN:
     IN_FEATURES: ["p2", "p3", "p4", "p5", "p6"]
-    PRE_NMS_TOPK_TRAIN: 2000  # Per FPN level
-    PRE_NMS_TOPK_TEST: 1000  # Per FPN level
+    PRE_NMS_TOPK_TRAIN: 3000  # Per FPN level
+    PRE_NMS_TOPK_TEST: 3000  # Per FPN level
     # Detectron1 uses 2000 proposals per-batch,
     # (See "modeling/rpn/rpn_outputs.py" for details of this legacy issue)
     # which is approximately 1000 proposals per-image since the default batch size for FPN is 2.
-    POST_NMS_TOPK_TRAIN: 1000
-    POST_NMS_TOPK_TEST: 1000
+    POST_NMS_TOPK_TRAIN: 1500
+    POST_NMS_TOPK_TEST: 1500
   ROI_HEADS:
     NAME: "StandardROIHeads"
     IN_FEATURES: ["p2", "p3", "p4", "p5"]
@@ -36,8 +36,8 @@ MODEL:
     NAME: "MaskRCNNConvUpsampleHead"
     NUM_CONV: 4
     POOLER_RESOLUTION: 14
-  PIXEL_MEAN: [0, 0, 0]
-  PIXEL_STD: [1, 1, 1]
+  PIXEL_MEAN: [20.77, 20.77, 20.77]
+  PIXEL_STD: [34.06, 34.06, 34.06]
 DATASETS: 
   TRAIN: ("wen",)
   TEST: ("wen_val",)

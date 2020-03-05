@@ -14,14 +14,17 @@ def get_custom_augmenters(name, max_size, is_train, image_shape):
     if "osman" in name:
         if is_train:
             seq = iaa.Sequential([
-                resize,
+                iaa.CropToFixedSize(height=max_size, width=max_size),
                 iaa.Fliplr(0.5),
-                iaa.Flipud(0.1),
+                iaa.Flipud(0.5),
                 iaa.Rot90(k=(0, 3)),
+                iaa.Affine(
+                    rotate=(-45, 45),
+                    backend='skimage'
+                ),
                 iaa.Sometimes(0.33, iaa.GammaContrast(gamma=(0.8, 1.2))),
                 iaa.Sometimes(0.5, iaa.Multiply(mul=(0.5, 1.5))),
             ])
-
         else:
             seq = iaa.Sequential([
                 resize,
@@ -134,18 +137,32 @@ def register_custom_datasets():
     path_dict = {}
 
     ####### OSMAN DATA
-    dict_getter = DictGetter("osman", train_path='/scratch/bunk/osman/mating_cells/COCO/DIR/train',
-                             val_path='/scratch/bunk/osman/mating_cells/COCO/DIR/val')
+    dict_getter = DictGetter("osman", train_path='/scratch/bunk/osman/newgt/train',
+                             val_path='/scratch/bunk/osman/newgt/val')
 
     path_dict["osman"] = dict_getter.train_path
 
     DatasetCatalog.register("osman", dict_getter.get_train_dicts)
-    MetadataCatalog.get("osman").thing_classes = ["mating", "single_cell", "crowd"]
-    MetadataCatalog.get("osman").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:1, 4:2}
-
+    MetadataCatalog.get("osman").thing_classes = ["mating"]
+    MetadataCatalog.get("osman").thing_dataset_id_to_contiguous_id = {0:0}
+ 
     DatasetCatalog.register("osman_val", dict_getter.get_val_dicts)
-    MetadataCatalog.get("osman_val").thing_classes = ["mating", "single_cell", "crowd"]
-    MetadataCatalog.get("osman_val").thing_dataset_id_to_contiguous_id = {1:0, 2:0, 3:1, 4:2}
+    MetadataCatalog.get("osman_val").thing_classes = ["mating"]
+    MetadataCatalog.get("osman_val").thing_dataset_id_to_contiguous_id = {0:0}
+
+    ####### LEONIE DATA
+    dict_getter = DictGetter("leonie", train_path='/scratch/bunk/osman/mating_cells/COCO/DIR/train',
+                             val_path='/scratch/bunk/osman/mating_cells/COCO/DIR/val')
+
+    path_dict["leonie"] = dict_getter.train_path
+
+    DatasetCatalog.register("leonie", dict_getter.get_train_dicts)
+    MetadataCatalog.get("leonie").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
+    MetadataCatalog.get("leonie").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3}
+
+    DatasetCatalog.register("leonie_val", dict_getter.get_val_dicts)
+    MetadataCatalog.get("leonie_val").thing_classes = ["good_mating", "bad_mating", "single_cell", "crowd"]
+    MetadataCatalog.get("leonie_val").thing_dataset_id_to_contiguous_id = {1:0, 2:1, 3:2, 4:3}
 
     ######## ISRAEL YEAST DATA
     dict_getter = DictGetter("israel", train_path='/scratch/bunk/osman/israel/train',
