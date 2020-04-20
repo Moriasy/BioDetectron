@@ -239,7 +239,9 @@ class BboxPredictor(BasePredictor):
         checkpointer = DetectionCheckpointer(self.model)
         checkpointer.load(self.cfg.MODEL.WEIGHTS)
 
-    def preprocess_img(self, image, norm=False, augment=False, graytrain=True):
+    def preprocess_img(self, image, norm=False, augment=False, graytrain=True, zproject=False):
+        if zproject:
+            image = np.max(image, axis=0)
         if len(image.shape) < 3:
             image = np.expand_dims(image, axis=-1)
             image = np.repeat(image, 3, axis=-1)
@@ -270,7 +272,7 @@ class BboxPredictor(BasePredictor):
 
         return image
 
-    def inference_on_folder(self, folder, saving=True, norm=False, augment=False, check_iou=True, graytrain=True):
+    def inference_on_folder(self, folder, saving=True, norm=False, augment=False, check_iou=True, graytrain=True, zproject=False):
         pathlist = glob(os.path.join(folder, '*.jpg')) + \
                   glob(os.path.join(folder, '*.tif')) + \
                   glob(os.path.join(folder, '*.png'))
@@ -282,19 +284,19 @@ class BboxPredictor(BasePredictor):
         for path in pathlist:
             image = imread(path)
 
-            boxes, classes, scores = self.detect_one_image(image, augment=False, norm=norm, check_iou=check_iou, graytrain=graytrain)
+            boxes, classes, scores = self.detect_one_image(image, augment=augment, norm=norm, zproject=zproject, check_iou=check_iou, graytrain=graytrain)
             boxlist.append(boxes)
             classlist.append(classes)
             scorelist.append(scores)
             imglist.append(image)
 
             if saving:
-                box2csv(boxes, classes, scores, os.path.splitext(path)[0] + '_predict.csv')
+                box2csv(os.path.splitext(path)[0] + '_predict.csv', boxes, classes, scores)
 
         return pathlist, imglist, boxlist, classlist, scorelist
 
-    def detect_one_image(self, image, norm=False, check_iou=True, augment=False, graytrain=True):
-        image = self.preprocess_img(image, norm=norm, graytrain=graytrain, augment=augment)
+    def detect_one_image(self, image, norm=False, check_iou=True, augment=False, graytrain=True, zproject=False):
+        image = self.preprocess_img(image, norm=norm, graytrain=graytrain, augment=augment, zproject=zproject)
 
         with torch.no_grad():
             instances = self.model([image])[0]["instances"]
@@ -354,7 +356,7 @@ class MaskPredictor(BasePredictor):
 
             pan = self.detect_one_image(image, zproject=zproject, norm=norm, graytrain=graytrain)
             imglist.append(image)
-            panlist.appen(pan)
+            panlist.append(pan)
 
         return pathlist, imglist, panlist
 
@@ -364,4 +366,3 @@ class MaskPredictor(BasePredictor):
 
         with torch.no_grad():
             return self.model([image])[0]["panoptic_seg"]
-
