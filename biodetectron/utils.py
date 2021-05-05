@@ -64,6 +64,8 @@ def get_mean_std(folder):
 
         if len(image.shape) > 3:
             image = np.max(image, axis=0)
+        if len(image.shape) > 2:
+            image = image[:,:,0]
         if len(image.shape) == 2:
             image = np.expand_dims(image, axis=-1)
         if image.shape[-1] == 1:

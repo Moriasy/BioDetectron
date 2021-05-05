@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="biodetectron",
-    version="0.5.0",
+    version="0.6.0",
     author="David Bunk",
     author_email="bunk@bio.lmu.de",
     description="Machine learning framework for biological image analysis.",
@@ -21,11 +21,11 @@ setuptools.setup(
     python_requires='>=3.6',
     install_requires=[
         "detectron2@https://github.com/facebookresearch/detectron2",
-        "pandas==0.24.2",
-        "scikit-image==0.16.2",
-        "imgaug==0.3.0",
-        "numpy==1.16.2",
-        "pycocotools==2.0.0",
+        "pandas",
+        "scikit-image",
+        "imgaug",
+        "numpy",
+        "pycocotools",
         "ffmpeg-python"
     ]
 )

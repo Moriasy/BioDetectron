@@ -1,30 +1,40 @@
 MODEL:
+  WEIGHTS: ""
+  META_ARCHITECTURE: "PanopticFPN"
   MASK_ON: True
-  META_ARCHITECTURE: "GeneralizedRCNN"
+  PANOPTIC_FPN:
+    COMBINE:
+      ENABLED: true
+      INSTANCES_CONFIDENCE_THRESH: 0.5
+      OVERLAP_THRESH: 0.5
+      STUFF_AREA_LIMIT: 4096
+    INSTANCE_LOSS_WEIGHT: 1.0
+  SEM_SEG_HEAD:
+    NUM_CLASSES: 6
+    LOSS_WEIGHT: 0.5
   BACKBONE:
-    NAME: "build_resnet_fpn_backbone"
     FREEZE_AT: 0
+    NAME: "build_resnet_fpn_backbone"
   RESNETS:
-    DEPTH: 50
     OUT_FEATURES: ["res2", "res3", "res4", "res5"]
   FPN:
     IN_FEATURES: ["res2", "res3", "res4", "res5"]
   ANCHOR_GENERATOR:
-    SIZES: [[32], [48], [64], [128], [196]]  # One size for each in feature map
+    SIZES: [[768], [896], [1024], [1152], [1280]]  # One size for each in feature map
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
   RPN:
     IN_FEATURES: ["p2", "p3", "p4", "p5", "p6"]
-    PRE_NMS_TOPK_TRAIN: 2000  # Per FPN level
-    PRE_NMS_TOPK_TEST: 2000  # Per FPN level
+    PRE_NMS_TOPK_TRAIN: 5000  # Per FPN level
+    PRE_NMS_TOPK_TEST: 5000  # Per FPN level
     # Detectron1 uses 2000 proposals per-batch,
     # (See "modeling/rpn/rpn_outputs.py" for details of this legacy issue)
     # which is approximately 1000 proposals per-image since the default batch size for FPN is 2.
-    POST_NMS_TOPK_TRAIN: 1000
-    POST_NMS_TOPK_TEST: 1000
+    POST_NMS_TOPK_TRAIN: 2000
+    POST_NMS_TOPK_TEST: 2000
   ROI_HEADS:
     NAME: "StandardROIHeads"
     IN_FEATURES: ["p2", "p3", "p4", "p5"]
-    NUM_CLASSES: 4
+    NUM_CLASSES: 5
   ROI_BOX_HEAD:
     NAME: "FastRCNNConvFCHead"
     NUM_FC: 2
@@ -33,23 +43,26 @@ MODEL:
     NAME: "MaskRCNNConvUpsampleHead"
     NUM_CONV: 4
     POOLER_RESOLUTION: 14
-  PIXEL_MEAN: [0,0,0]
-  PIXEL_STD: [1,1,1]
+    CLS_AGNOSTIC_MASK: true
+  PIXEL_MEAN: [0, 0, 0]
+  PIXEL_STD: [1, 1, 1]
 DATASETS: 
-  TRAIN: ("osman_mother",)
-  TEST: ("osman_mother_val",)
+  TRAIN: ("dna",)
+  TEST: ("dna_val",)
 DATALOADER:
-  NUM_WORKERS: 8
+  NUM_WORKERS: 16
 SOLVER:
-  IMS_PER_BATCH: 2
-  BASE_LR: 0.01
+  IMS_PER_BATCH: 4
+  BASE_LR: 0.005
   STEPS: (60000, 80000)
-  MAX_ITER: 100000
-  CHECKPOINT_PERIOD: 250
+  MAX_ITER: 1000000
+  CHECKPOINT_PERIOD: 1000
 INPUT:
-  MIN_SIZE_TRAIN: (1000,)
+  MIN_SIZE_TRAIN: (1608,)
   MAX_SIZE_TRAIN: 1608
+  MASK_FORMAT: bitmask
 TEST:
-  EVAL_PERIOD: 250
+  EVAL_PERIOD: 500
+  DETECTIONS_PER_IMAGE: 2000
 OUTPUT_DIR: '/scratch/bunk/logs'
 VIS_PERIOD: 1000

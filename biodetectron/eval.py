@@ -1,16 +1,20 @@
 import os
 import sys
 import copy
+import json
 import torch
 import logging
 import numpy as np
 from glob import glob
-from skimage.io import imread
+from skimage.io import imread, imsave
+from skimage.transform import rescale
 from itertools import combinations
 from skimage.color import rgb2gray
+from skimage.transform import rescale, resize
 from subprocess import Popen, PIPE
 from collections import OrderedDict
 from skimage.exposure import rescale_intensity
+from skimage.measure import regionprops
 
 import detectron2.utils.comm as comm
 from detectron2.config import get_cfg
@@ -25,7 +29,6 @@ from detectron2.modeling import GeneralizedRCNN, PanopticFPN
 from biodetectron.utils import box2csv
 from biodetectron.datasets import get_custom_augmenters
 from biodetectron.metrics import BoundingBox, BoundingBoxes, BBFormat, BBType, Evaluator as MetricEvaluator
-
 
 class GenericEvaluator(DatasetEvaluator):
     def __init__(self, dataset_name, cfg, output_dir, distributed=False):
@@ -97,17 +100,20 @@ class GenericEvaluator(DatasetEvaluator):
     def _eval_predictions(self, tasks):
         storage = get_event_storage()
 
-        for n in range(len(self._predictions)):
-            metadata = MetadataCatalog.get(self._dataset_name)
+        # for n in range(len(self._predictions)):
+        #     metadata = MetadataCatalog.get(self._dataset_name)
 
-            image = self._predictions[n]["groundtruth"]["gt_image"]
+        #     image = self._predictions[n]["groundtruth"]["gt_image"]
 
-            viz = Visualizer(image, metadata)
-            viz = viz.draw_instance_predictions(self._predictions[n]["instances"])
+        #     image = rescale_intensity(image, out_range=np.uint8)
+        #     image = image.astype(np.uint8)
 
-            viz_image = viz.get_image()
-            viz_image = viz_image.transpose(2, 0, 1)
-            storage.put_image("Evaluation predictions",viz_image)
+        #     viz = Visualizer(image, metadata)
+        #     viz = viz.draw_instance_predictions(self._predictions[n]["instances"])
+
+        #     viz_image = viz.get_image()
+        #     viz_image = viz_image.transpose(2, 0, 1)
+        #     storage.put_image("Evaluation predictions",viz_image)
 
 
         if "AP" in tasks:
@@ -267,9 +273,6 @@ class BboxPredictor(BasePredictor):
             image = image.astype(np.float32)
             image = rescale_intensity(image)
 
-        image = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
-        image = {"image": image, "height": height, "width": width}
-
         return image
 
     def inference_on_folder(self, folder, saving=True, norm=False, augment=False, check_iou=True, graytrain=True, zproject=False):
@@ -296,24 +299,65 @@ class BboxPredictor(BasePredictor):
         return pathlist, imglist, boxlist, classlist, scorelist
 
     def detect_one_image(self, image, norm=False, check_iou=True, augment=False, graytrain=True, zproject=False):
-        image = self.preprocess_img(image, norm=norm, graytrain=graytrain, augment=augment, zproject=zproject)
+        real_image = self.preprocess_img(image, norm=norm, graytrain=graytrain, augment=augment, zproject=zproject)
 
-        with torch.no_grad():
-            instances = self.model([image])[0]["instances"]
+        real_boxes = []
+        real_classes = []
+        real_scores = []
+        for n in range(4):
+            if n == 0:
+                image = real_image[:1200,:1200,:]
+            if n == 1:
+                image = real_image[:1200,848:,:]
+            if n == 2:
+                image = real_image[848:,:1200,:]
+            if n == 3:
+                image = real_image[848:,848:,:]
 
-        boxes = list(instances.pred_boxes)
-        boxes = [tuple(box.cpu().numpy()) for box in boxes]
+            #image = resize(image, (1608,1608,3))
 
-        scores = list(instances.scores)
-        scores = [score.cpu().numpy() for score in scores]
+            height, width = image.shape[:2]
+            image = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
+            image = {"image": image, "height": height, "width": width}
 
-        classes = list(instances.pred_classes)
-        classes = [cls.cpu().numpy() for cls in classes]
+            with torch.no_grad():
+                instances = self.model([image])[0]["instances"]
 
-        if check_iou:
-            boxes, classes, scores = self.check_iou(boxes, scores, classes)
+            boxes = list(instances.pred_boxes)
+            boxes = [tuple(box.cpu().numpy()) for box in boxes]
 
-        return boxes, classes, scores
+            scores = list(instances.scores)
+            scores = [score.cpu().numpy() for score in scores]
+
+            classes = list(instances.pred_classes)
+            classes = [cls.cpu().numpy() for cls in classes]
+
+            if check_iou:
+                boxes, classes, scores = self.check_iou(boxes, scores, classes)
+
+            for i, box in enumerate(boxes):
+                if n == 0:
+                    #if box[0] <= 1024 and box[1] <= 1024:
+                    real_boxes.append(box)
+                    real_classes.append(classes[i])
+                    real_scores.append(scores[i])
+                if n == 1:
+                    #if box[0] > 1024 and box[1] <= 1024:
+                    real_boxes.append([box[0]+848,box[1],box[2]+848,box[3]])
+                    real_classes.append(classes[i])
+                    real_scores.append(scores[i])
+                if n == 2:
+                    #if box[0] <= 1024 and box[1] > 1024:
+                    real_boxes.append([box[0],box[1]+848,box[2],box[3]+848])
+                    real_classes.append(classes[i])
+                    real_scores.append(scores[i])
+                if n == 3:
+                    #if box[0] > 1024 and box[1] > 1024:
+                    real_boxes.append([box[0]+848,box[1]+848,box[2]+848,box[3]+848])
+                    real_classes.append(classes[i])
+                    real_scores.append(scores[i])
+
+        return real_boxes, real_classes, real_scores
 
 class MaskPredictor(BasePredictor):
     def __init__(self, cfg, weights=None):
@@ -330,13 +374,23 @@ class MaskPredictor(BasePredictor):
         checkpointer = DetectionCheckpointer(self.model)
         checkpointer.load(self.cfg.MODEL.WEIGHTS)
 
-    def preprocess_img(self, image, norm=False, zproject=True, graytrain=True):
+    def preprocess_img(self, image, norm=False, zproject=True):
         if zproject:
-            image = np.max(image, axis=0)
+            image = image[image.shape[0]//2]
+            #image = np.max(image, axis=0)
+
+        if len(image.shape) > 2:
+            image = image[:,:,0]
+        if len(image.shape) < 3:
+            image = np.expand_dims(image, axis=-1)
+        elif image.shape[-1] == 1:
+            image = np.repeat(image, 3, axis=-1)
 
         if norm:
             image = image.astype(np.float32)
             image = rescale_intensity(image)
+            # image = image - np.mean(image)
+            # image = image / np.std(image)   
 
         height, width = image.shape[0:2]
         image = torch.as_tensor(image.transpose(2,0,1).astype("float32"))  
@@ -344,25 +398,98 @@ class MaskPredictor(BasePredictor):
 
         return image
 
-    def inference_on_folder(self, channel_order, folder, saving=True, zproject=True, norm=False, graytrain=True):
+    def inference_on_folder(self, folder, saving=True, zproject=True, norm=False, score_thresholds=[0.9,0.1,0.1,0.5]):
         pathlist = glob(os.path.join(folder, '*.jpg')) + \
                   glob(os.path.join(folder, '*.tif')) + \
                   glob(os.path.join(folder, '*.png'))
 
-        imglist= []
-        panlist = []
+        pathlist = [path for path in pathlist if not 'mask' in path]
+
+        result = {}
         for path in pathlist:
             image = imread(path)
 
-            pan = self.detect_one_image(image, zproject=zproject, norm=norm, graytrain=graytrain)
-            imglist.append(image)
-            panlist.append(pan)
+            pred = self.detect_one_image(image, zproject=zproject, norm=norm)
 
-        return pathlist, imglist, panlist
+            boxes = list(pred['instances'].pred_boxes)
+            boxes = [tuple(box.cpu().numpy()) for box in boxes]
+
+            masks = list(pred['instances'].pred_masks)
+            masks = [mask.cpu().numpy() for mask in masks]
+
+            scores = list(pred['instances'].scores)
+            scores = [score.cpu().numpy() for score in scores]
+
+            classes = list(pred['instances'].pred_classes)
+            classes = [cls.cpu().numpy() for cls in classes]
+
+            if zproject:
+                image = image[image.shape[0]//2]
+
+            tmpres = {'things': [], 'mask': None}
+            new_mask = np.zeros((image.shape[0], image.shape[1], self.cfg.MODEL.ROI_HEADS.NUM_CLASSES), dtype=np.uint16)
+
+            for n, mask in enumerate(masks):
+                if scores[n] < score_thresholds[classes[n]]:
+                    continue
+    
+                mask = mask.astype(np.uint16)
+
+                tmp = new_mask[:,:,classes[n]]
+                tmp[mask > 0] = n + 1
+                new_mask[:,:,classes[n]] = tmp
+
+                x1, y1, x2, y2 = map(int, boxes[n])
+
+                obj = {'id': n+1, 'class': int(classes[n]), 'box': [x1, y1, x2, y2], 'score': float(np.round(scores[n], decimals=2))}
+                tmpres['things'].append(obj)
+
+            if saving:
+                imsave(path.replace('.tif', '_mask.tif'), new_mask)
+                with open(path.replace('.tif', '_detections.json'), 'w') as file:
+                    json.dump(tmpres, file)
+
+            #tmpres['mask'] = mask
+            result[path] = tmpres
+
+        return result
 
 
-    def detect_one_image(self, image, zproject=True, norm=False, graytrain=True):
-        image = self.preprocess_img(image, zproject=zproject, norm=norm, graytrain=graytrain)
+    # def inference_on_folder(self, folder, saving=True, zproject=True, norm=False):
+    #     pathlist = glob(os.path.join(folder, '*.jpg')) + \
+    #               glob(os.path.join(folder, '*.tif')) + \
+    #               glob(os.path.join(folder, '*.png'))
+
+    #     result = {}
+    #     for path in pathlist:
+    #         image = imread(path)
+
+    #         mask, meta = self.detect_one_image(image, zproject=zproject, norm=norm)
+    #         mask = mask.cpu().numpy()
+    #         things = regionprops(mask)
+
+    #         tmpres = {'things': [], 'mask': None}
+    #         for t, thing in enumerate(things):
+    #             assert meta[t]['id'] == thing.label
+
+    #             if meta[t]['isthing']:
+    #                 y1, x1, y2, x2 = map(int, thing.bbox)
+
+    #                 obj = {'id': meta[t]['id'], 'class': meta[t]['category_id'], 'box': [x1, y1, x2, y2], 'score': np.round(meta[t]['score'], decimals=2)}
+    #                 tmpres['things'].append(obj)
+
+    #         if saving:
+    #             imsave(path.replace('.tif', '_mask.tif'), mask.astype(np.uint16))
+    #             with open(path.replace('.tif', '_detections.json'), 'w') as file:
+    #                 json.dump(tmpres, file)
+
+    #         #tmpres['mask'] = mask
+    #         result[path] = tmpres
+
+    #    return result
+
+    def detect_one_image(self, image, zproject=True, norm=False):
+        image = self.preprocess_img(image, zproject=zproject, norm=norm)
 
         with torch.no_grad():
-            return self.model([image])[0]["panoptic_seg"]
+            return self.model([image])[0]
