@@ -28,6 +28,7 @@ from detectron2.evaluation import DatasetEvaluator
 from detectron2.data import DatasetMapper, MetadataCatalog, detection_utils as utils
 
 from biodetectron.datasets import get_custom_augmenters
+from biodetectron.utils import scale_box
 
 
 def get_neuro_txt(root_dir, dataset, suffix=''):
@@ -577,7 +578,6 @@ def get_masks_new_format(root_dir):
     return dataset_dicts
 
 
-
 def get_multi_masks_new_format(root_dir):
     imglist = glob(os.path.join(root_dir, '*.jpg')) + \
               glob(os.path.join(root_dir, '*.tif')) + \
@@ -691,6 +691,120 @@ def get_multi_masks_new_format(root_dir):
     return dataset_dicts
 
 
+def get_multi_masks_new_format_mating2(root_dir):
+    imglist = glob(os.path.join(root_dir, '*.jpg')) + \
+              glob(os.path.join(root_dir, '*.tif')) + \
+              glob(os.path.join(root_dir, '*.png'))
+
+    imglist = [path for path in imglist if 'instance' not in path and 'mask' not in path]
+    imglist.sort()
+
+    dataset_dicts = []
+    for idx, filename in enumerate(imglist):
+        record = {}
+        objs = []
+
+        ### THIS IS INEFFICIENT
+        shapecheck = quickread(filename)
+
+        if len(shapecheck.shape) == 2:
+            height, width = quickread(filename).shape
+        elif len(shapecheck.shape) == 3:
+            height, width = quickread(filename).shape[0:2]
+        elif len(shapecheck.shape) == 4:
+            height, width = quickread(filename).shape[1:3]
+
+        record["file_name"] = filename
+        record["image_id"] = idx
+        record["height"] = height
+        record["width"] = width
+
+        name = filename.replace('.tif', '_mask.tif')
+
+        mask = imread(name).astype(np.uint16)
+        with open(name.replace('_mask.tif', '_detections.json'), 'r') as file:
+            points = json.load(file)
+
+        fullmask = np.zeros((mask.shape[0], mask.shape[1], 8), dtype=np.uint16)
+        fullmask[:,:,0] = mask
+
+        for thing in points['things']:
+            if thing['class'] == 1:
+                val = np.max(fullmask[:,:,1]) + 1
+                
+                points = thing['points']
+
+                idx = mask[int(points[0][0]), int(points[0][1])]
+                fullmask[:,:,1][mask == idx] = val
+                fullmask[:,:,5][mask == idx] = val
+
+                idx = mask[int(points[1][0]), int(points[1][1])]
+                fullmask[:,:,1][mask == idx] = val
+                fullmask[:,:,5][mask == idx] = val
+
+                idx = mask[int(points[2][0]), int(points[2][1])]
+                fullmask[:,:,2][mask == idx] = val
+                fullmask[:,:,5][mask == idx] = val
+
+            elif thing['class'] == 2:
+                val = np.max(fullmask[:,:,3]) + 1
+                
+                points = thing['points']
+
+                idx = mask[int(points[0][0]), int(points[0][1])]
+                fullmask[:,:,3][mask == idx] = val
+                fullmask[:,:,6][mask == idx] = val
+
+                idx = mask[int(points[1][0]), int(points[1][1])]
+                fullmask[:,:,4][mask == idx] = val
+                fullmask[:,:,6][mask == idx] = val
+
+            elif thing['class'] == 3:
+                val = np.max(fullmask[:,:,1]) + 1
+                
+                points = thing['points']
+
+                idx = mask[int(points[0][0]), int(points[0][1])]
+                fullmask[:,:,1][mask == idx] = val
+                fullmask[:,:,7][mask == idx] = val
+
+                idx = mask[int(points[1][0]), int(points[1][1])]
+                fullmask[:,:,1][mask == idx] = val
+                fullmask[:,:,7][mask == idx] = val
+
+        for n in range(fullmask.shape[2]):
+            if n == 1 or n == 2 or n == 3 or n == 4:
+                continue
+
+            if n == 0:
+                category_id = 0
+            elif n == 5:
+                category_id = 1
+            elif n == 6:
+                category_id = 2
+            elif n == 7:
+                category_id = 3
+
+            boxes = regionprops(fullmask[:,:,n])
+            for rp in boxes:
+                box = rp.bbox
+                box = [box[1], box[0], box[3], box[2]]
+
+                obj = {
+                    "bbox": box,
+                    "bbox_mode": BoxMode.XYXY_ABS,
+                    "segmentation": [],
+                    "category_id": category_id,
+                    "iscrowd": 0
+                }
+                objs.append(obj)
+                    
+        record["annotations"] = objs
+        record["sem_seg"] = fullmask
+        dataset_dicts.append(record)
+
+    return dataset_dicts
+
 class MaskDetectionLoader(DatasetMapper):
     def __init__(self, cfg, is_train=True, mask_format="bitmask"):
         super().__init__(cfg, is_train=is_train)
@@ -780,15 +894,22 @@ class MaskDetectionLoader(DatasetMapper):
                     singlemask[segmap[:,:,n] == rp.label] = 1
                     category_id = 0
                 elif n == 5:
+                    singlemask[int(box[0]):int(box[2]),int(box[1]):int(box[3])][segmap[:,:,n][int(box[0]):int(box[2]),int(box[1]):int(box[3])] > 0] = 1
                     singlemask[segmap[:,:,1] == rp.label] = 2
                     singlemask[segmap[:,:,2] == rp.label] = 3
                     category_id = 1
                 elif n == 6:
+                    singlemask[int(box[0]):int(box[2]),int(box[1]):int(box[3])][segmap[:,:,n][int(box[0]):int(box[2]),int(box[1]):int(box[3])] > 0] = 1
                     singlemask[segmap[:,:,3] == rp.label] = 4
                     singlemask[segmap[:,:,4] == rp.label] = 5
                     category_id = 2
+                elif n == 7:
+                    singlemask[int(box[0]):int(box[2]),int(box[1]):int(box[3])][segmap[:,:,n][int(box[0]):int(box[2]),int(box[1]):int(box[3])] > 0] = 1
+                    singlemask[segmap[:,:,1] == rp.label] = 1
+                    category_id = 3
 
                 box = rp.bbox
+                #box = scale_box(box, 0.2)
 
                 obj = {
                     "bbox": [box[1], box[0], box[3], box[2]],

@@ -18,7 +18,20 @@ from pandas import DataFrame
 from pycocotools.coco import COCO
 
 from biodetectron.datasets import *
-from biodetectron.data import get_csv
+
+
+def scale_box(box, scale_factor=0.1):
+    deltah = (box[2] - box[0]) * scale_factor / 2
+    deltaw = (box[3] - box[1]) * scale_factor / 2
+
+    x1 = box[1] - deltaw
+    x2 = box[3] - deltaw
+    y1 = box[0] - deltah
+    y2 = box[2] - deltah
+
+    scaled_box = [y1,x1,y2,x2]
+
+    return scaled_box
 
 
 def include_patterns(*patterns):
@@ -216,6 +229,8 @@ def vidwrite(fn, images, framerate=2, vcodec='libx264'):
 
 
 def csv2video(file_out, path_in, dataset=None, suffix='_predict', do_mapping=False):
+    from biodetectron.data import get_csv
+
     dict_list = get_csv(path_in, dataset, suffix=suffix, do_mapping=do_mapping)
     metadata = MetadataCatalog.get(dataset)
 
@@ -241,7 +256,5 @@ def csv2video(file_out, path_in, dataset=None, suffix='_predict', do_mapping=Fal
         viz = viz.draw_dataset_dict(dic, colors=colors)
 
         imgstack.append(viz.get_image())
-
-    print(len(imgstack))
 
     vidwrite(file_out, imgstack, framerate=2)

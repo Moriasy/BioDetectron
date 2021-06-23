@@ -3,7 +3,7 @@ from biodetectron.masks import BitMasks
 import detectron2
 
 detectron2.layers.paste_masks_in_image = paste_masks_in_image
-detectron2.structures = BitMasks
+detectron2.structures.BitMasks = BitMasks
 
 import os
 import numpy as np
@@ -27,7 +27,7 @@ from biodetectron.eval import GenericEvaluator
 
 from biodetectron.models import *
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 #os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 class Trainer(DefaultTrainer):
