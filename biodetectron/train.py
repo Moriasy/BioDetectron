@@ -28,8 +28,6 @@ from biodetectron.eval import GenericEvaluator
 from biodetectron.models import *
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-#os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-
 class Trainer(DefaultTrainer):
     @classmethod
     def build_evaluator(cls, cfg, dataset_name):
@@ -53,10 +51,7 @@ class Trainer(DefaultTrainer):
 
 def setup(args):
     cfg = get_cfg()
-
-    ### Own cfg values
-    cfg.MAX_VIS_PROPS = 2000
-    cfg.MODEL.ROI_HEADS.NUM_MASK_CLASSES = 6
+    cfg.MODEL.ROI_HEADS.NUM_MASK_CLASSES = None
 
     cfg.merge_from_file(args.config_file)
 
