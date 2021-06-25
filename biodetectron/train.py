@@ -20,14 +20,15 @@ from detectron2.data.datasets import load_coco_json, register_coco_instances
 from detectron2.engine import default_argument_parser, DefaultTrainer, launch, default_setup
 from detectron2.data import build_detection_test_loader, build_detection_train_loader, DatasetMapper
 
-from biodetectron.data import BoxDetectionLoader, MaskDetectionLoader
+from biodetectron.data import MaskDetectionLoader
 from biodetectron.datasets import register_custom_datasets
 from biodetectron.utils import copy_code, get_mean_std
 from biodetectron.eval import GenericEvaluator
 
 from biodetectron.models import *
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+
 class Trainer(DefaultTrainer):
     @classmethod
     def build_evaluator(cls, cfg, dataset_name):
@@ -39,14 +40,14 @@ class Trainer(DefaultTrainer):
         if cfg.MODEL.MASK_ON:
             return build_detection_test_loader(cfg, dataset_name, mapper=MaskDetectionLoader(cfg, False))
         else:
-            return build_detection_test_loader(cfg, dataset_name, mapper=BoxDetectionLoader(cfg, False))
+            pass
 
     @classmethod
     def build_train_loader(cls, cfg):
         if cfg.MODEL.MASK_ON:
             return build_detection_train_loader(cfg, mapper=MaskDetectionLoader(cfg, True))
         else:
-            return build_detection_train_loader(cfg, mapper=BoxDetectionLoader(cfg, True))
+            pass
 
 
 def setup(args):

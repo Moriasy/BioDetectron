@@ -1,6 +1,6 @@
 MODEL:
   DEVICE: "cuda"
-  WEIGHTS: "/scratch/bunk/logs/yeastmate_budding/062021_142922/model_0015999.pth"
+  WEIGHTS: ""
   META_ARCHITECTURE: "GeneralizedRCNN"
   MASK_ON: True
   BACKBONE:
@@ -40,12 +40,12 @@ MODEL:
   PIXEL_MEAN: [0, 0, 0]
   PIXEL_STD: [1, 1, 1]
 DATASETS: 
-  TRAIN: ("yeastmate_budding",)
-  TEST: ("yeastmate_budding_val",)
+  TRAIN: ("yeastmate",)
+  TEST: ("yeastmate_val",)
 DATALOADER:
   NUM_WORKERS: 16
 SOLVER:
-  IMS_PER_BATCH: 8
+  IMS_PER_BATCH: 2
   BASE_LR: 0.005
   STEPS: (60000, 80000)
   MAX_ITER: 1000000

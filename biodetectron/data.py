@@ -30,7 +30,7 @@ from detectron2.data import DatasetMapper, MetadataCatalog, detection_utils as u
 from biodetectron.datasets import get_custom_augmenters
 from biodetectron.utils import scale_box
 
-def get_multi_masks_new_format(root_dir):
+def get_multi_masks(root_dir):
     imglist = glob(os.path.join(root_dir, '*.jpg')) + \
               glob(os.path.join(root_dir, '*.tif')) + \
               glob(os.path.join(root_dir, '*.png'))
@@ -166,7 +166,7 @@ class MaskDetectionLoader(DatasetMapper):
         ### NOT GENERALIZED YET!
         if len(image.shape) > 3:
             #image = np.max(image, axis=0)
-            image = image[image.shape[0]//2 + np.random.randint(-5,5)]
+            image = image[image.shape[0]//2 + np.random.randint(-2,2)]
             #image = image[np.random.randint(0, image.shape[0]-1)]
 
         if len(image.shape) > 2:
@@ -186,12 +186,6 @@ class MaskDetectionLoader(DatasetMapper):
 
         #image = equalize_adapthist(image)
 
-        image = image.astype(np.float32)
-        if 0 in self.cfg.MODEL.PIXEL_MEAN and 1 in self.cfg.MODEL.PIXEL_STD:
-            image = rescale_intensity(image)
-            # image = image - np.mean(image)
-            # image = image / np.std(image)
-
         if not self.is_train:
             dataset_dict['gt_image'] = image
 
@@ -209,6 +203,12 @@ class MaskDetectionLoader(DatasetMapper):
             image, segmap = seq(image=image, segmentation_maps=segmap)
         #else:
         #    image, _, _ = seq(image=image, bounding_boxes=boxes, segmentation_maps=segmap)
+
+        image = image.astype(np.float32)
+        if 0 in self.cfg.MODEL.PIXEL_MEAN and 1 in self.cfg.MODEL.PIXEL_STD:
+            image = rescale_intensity(image)
+            # image = image - np.mean(image)
+            # image = image / np.std(image)
             
         # Convert image to tensor for pytorch model.
         dataset_dict["image"] = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
