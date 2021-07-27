@@ -1,4 +1,3 @@
-git+git://github.com/facebookresearch/detectron2
 pandas
 scikit-image
 imgaug
