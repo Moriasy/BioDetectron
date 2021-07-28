@@ -56,5 +56,5 @@ INPUT:
 TEST:
   EVAL_PERIOD: 500
   DETECTIONS_PER_IMAGE: 2000
-OUTPUT_DIR: '/scratch/bunk/logs'
+OUTPUT_DIR: '/home/appuser/output'
 VIS_PERIOD: 1000
