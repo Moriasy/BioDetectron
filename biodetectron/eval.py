@@ -29,8 +29,8 @@ from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.modeling import GeneralizedRCNN
 from detectron2.config import CfgNode as CN
 
-
 from biodetectron.datasets import get_custom_augmenters
+from biodetectron.models import MultiMaskRCNNConvUpsampleHead as MultiR
 from biodetectron.metrics import BoundingBox, BoundingBoxes, BBFormat, BBType, Evaluator as MetricEvaluator
 from biodetectron.postprocessing import postproc_multimask
 
