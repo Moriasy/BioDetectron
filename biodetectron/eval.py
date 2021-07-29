@@ -32,7 +32,7 @@ from detectron2.config import CfgNode as CN
 
 from biodetectron.datasets import get_custom_augmenters
 from biodetectron.metrics import BoundingBox, BoundingBoxes, BBFormat, BBType, Evaluator as MetricEvaluator
-from biodetectron.postprocesseing import postproc_multimask
+from biodetectron.postprocessing import postproc_multimask
 
 class GenericEvaluator(DatasetEvaluator):
     def __init__(self, dataset_name, cfg, output_dir, distributed=False):
