@@ -249,12 +249,6 @@ class MaskPredictor(BasePredictor):
 
         self.cfg.merge_from_file(cfg)
 
-        possible_comps = {}
-        for n in range(len(self.cfg.POSTPROCESSING.POSSIBLE_COMPS)):
-            possible_comps[n+1] = self.cfg.POSTPROCESSING.POSSIBLE_COMPS[n]
-
-        self.cfg.POSTPROCESSING.POSSIBLE_COMPS  = possible_comps
-
         if weights is not None:
             self.cfg.MODEL.WEIGHTS = weights
 
@@ -295,7 +289,11 @@ class MaskPredictor(BasePredictor):
 
     @staticmethod
     def postprocess_instances(instances, possible_comps, optional_object_score_threshold=0.15, parent_override_threshold=2):
-        things, mask = postproc_multimask(instances, possible_comps, \
+        possible_comps_dict = {}
+        for n in range(len(possible_comps)):
+            possible_comps_dict[n+1] = possible_comps[n]
+
+        things, mask = postproc_multimask(instances, possible_comps_dict, \
             optional_object_score_threshold=optional_object_score_threshold, parent_override_threshold=parent_override_threshold)
 
         return things, mask
