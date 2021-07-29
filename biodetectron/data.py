@@ -14,6 +14,7 @@ from skimage.measure import label as label_binary
 from skimage.exposure import rescale_intensity, equalize_adapthist
 from skimage.filters import threshold_otsu
 from skimage.morphology import remove_small_holes, remove_small_objects
+from skimage.transform import rescale
 
 from scipy.ndimage import gaussian_filter
 
@@ -182,21 +183,34 @@ class MaskDetectionLoader(DatasetMapper):
             image = np.repeat(image, 3, axis=-1)
 
         utils.check_image_size(dataset_dict, image)
-        image_shape = image.shape[:2]  # h, w
 
-        #image = equalize_adapthist(image)
+        image = image.astype(np.float32)
+        if 0 in self.cfg.MODEL.PIXEL_MEAN and 1 in self.cfg.MODEL.PIXEL_STD:
+            vallower = np.random.uniform(0.00001, 5)
+            valupper = np.random.uniform(95,99.99999)
+            lq, uq = np.percentile(image, [vallower, valupper])
+            image = rescale_intensity(image, in_range=(lq,uq), out_range=(0,1))
+            # image = image - np.mean(image)
+            # image = image / np.std(image)
+
+        if 'Quad' in dataset_dict["file_name"] or 'Trans' in dataset_dict["file_name"]:
+            mask = dataset_dict['sem_seg'].astype(np.uint16)
+        elif 'MIC' in dataset_dict["file_name"] or 'DIC_BF' in dataset_dict["file_name"]:
+            mask = dataset_dict['sem_seg'].astype(np.uint16)
+        else:
+            image = rescale(image, 0.66, preserve_range=True, multichannel=True)
+            mask = rescale(dataset_dict['sem_seg'], 0.66, preserve_range=True, multichannel=True, anti_aliasing=False, order=0).astype(np.uint16)
 
         if not self.is_train:
             dataset_dict['gt_image'] = image
 
-        segmap = SegmentationMapsOnImage(dataset_dict['sem_seg'].astype(np.uint16), shape=image.shape)
+        segmap = SegmentationMapsOnImage(mask, shape=image.shape)
 
         # Define augmentations.
         seq = get_custom_augmenters(
             self.cfg.DATASETS.TRAIN,
             self.cfg.INPUT.MAX_SIZE_TRAIN,
-            self.is_train,
-            image_shape
+            self.is_train
         )
 
         if self.is_train:
@@ -204,11 +218,7 @@ class MaskDetectionLoader(DatasetMapper):
         #else:
         #    image, _, _ = seq(image=image, bounding_boxes=boxes, segmentation_maps=segmap)
 
-        image = image.astype(np.float32)
-        if 0 in self.cfg.MODEL.PIXEL_MEAN and 1 in self.cfg.MODEL.PIXEL_STD:
-            image = rescale_intensity(image)
-            # image = image - np.mean(image)
-            # image = image / np.std(image)
+        image_shape = image.shape[:2]  # h, w
             
         # Convert image to tensor for pytorch model.
         dataset_dict["image"] = torch.as_tensor(image.transpose(2, 0, 1).astype("float32"))
@@ -226,6 +236,8 @@ class MaskDetectionLoader(DatasetMapper):
             boxes = regionprops(segmap[:,:,n])
             for rp in boxes:
                 singlemask = np.zeros((segmap.shape[0], segmap.shape[1]), dtype=np.uint8)
+
+                box = rp.bbox
 
                 if n == 0:
                     singlemask[segmap[:,:,n] == rp.label] = 1
@@ -245,7 +257,6 @@ class MaskDetectionLoader(DatasetMapper):
                     singlemask[segmap[:,:,1] == rp.label] = 1
                     category_id = 3
 
-                box = rp.bbox
                 #box = scale_box(box, 0.2)
 
                 obj = {
