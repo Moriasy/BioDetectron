@@ -16,6 +16,8 @@ from collections import OrderedDict
 from skimage.exposure import rescale_intensity
 from skimage.measure import regionprops
 
+import torch
+
 import detectron2.utils.comm as comm
 from detectron2.config import get_cfg
 from detectron2.engine import HookBase
@@ -24,10 +26,13 @@ from detectron2.utils.visualizer import Visualizer
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.events import get_event_storage
 from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.modeling import GeneralizedRCNN, PanopticFPN
+from detectron2.modeling import GeneralizedRCNN
+from detectron2.config import CfgNode as CN
+
 
 from biodetectron.datasets import get_custom_augmenters
 from biodetectron.metrics import BoundingBox, BoundingBoxes, BBFormat, BBType, Evaluator as MetricEvaluator
+from biodetectron.postprocesseing import postproc_multimask
 
 class GenericEvaluator(DatasetEvaluator):
     def __init__(self, dataset_name, cfg, output_dir, distributed=False):
@@ -231,22 +236,38 @@ class BasePredictor:
 class MaskPredictor(BasePredictor):
     def __init__(self, cfg, weights=None):
         self.cfg = get_cfg()
+        self.cfg.MODEL.ROI_HEADS.NUM_MASK_CLASSES = None
+        self.cfg.MAX_VIS_PROPS = None
+
+        self.cfg.POSTPROCESSING = CN()
+        self.cfg.POSTPROCESSING.POSSIBLE_COMPS = None
+        self.cfg.POSTPROCESSING.OPTIONAL_OBJECT_SCORE_THRESHOLD = None
+        self.cfg.POSTPROCESSING.PARENT_OVERRIDE_THRESHOLD = None
+
+        if not torch.cuda.is_available():
+            self.cfg.MODEL.DEVICE = 'cpu'
+
         self.cfg.merge_from_file(cfg)
+
+        possible_comps = {}
+        for n in range(len(self.cfg.POSTPROCESSING.POSSIBLE_COMPS)):
+            possible_comps[n+1] = self.cfg.POSTPROCESSING.POSSIBLE_COMPS[n]
+
+        self.cfg.POSTPROCESSING.POSSIBLE_COMPS  = possible_comps
 
         if weights is not None:
             self.cfg.MODEL.WEIGHTS = weights
 
-        #self.model = GeneralizedRCNN(self.cfg)
-        self.model = PanopticFPN(self.cfg)
+        self.model = GeneralizedRCNN(self.cfg)
         self.model.eval()
 
         checkpointer = DetectionCheckpointer(self.model)
         checkpointer.load(self.cfg.MODEL.WEIGHTS)
 
-    def preprocess_img(self, image, norm=False, zproject=True):
-        if zproject:
+    @staticmethod
+    def preprocess_img(self, image, norm=False, zstack=False):
+        if zstack:
             image = image[image.shape[0]//2]
-            #image = np.max(image, axis=0)
 
         if len(image.shape) > 2:
             image = image[:,:,0]
@@ -257,9 +278,8 @@ class MaskPredictor(BasePredictor):
 
         if norm:
             image = image.astype(np.float32)
-            image = rescale_intensity(image)
-            # image = image - np.mean(image)
-            # image = image / np.std(image)   
+            lq, uq = np.percentile(image, [1, 99])
+            image = rescale_intensity(image, in_range=(lq,uq), out_range=(0,1))
 
         height, width = image.shape[0:2]
         image = torch.as_tensor(image.transpose(2,0,1).astype("float32"))  
@@ -267,64 +287,15 @@ class MaskPredictor(BasePredictor):
 
         return image
 
-    def inference_on_folder(self, folder, saving=True, zproject=True, norm=False, score_thresholds=[0.9,0.1,0.1,0.5]):
-        pathlist = glob(os.path.join(folder, '*.jpg')) + \
-                  glob(os.path.join(folder, '*.tif')) + \
-                  glob(os.path.join(folder, '*.png'))
-
-        pathlist = [path for path in pathlist if not 'mask' in path]
-
-        result = {}
-        for path in pathlist:
-            image = imread(path)
-
-            pred = self.detect_one_image(image, zproject=zproject, norm=norm)
-
-            boxes = list(pred['instances'].pred_boxes)
-            boxes = [tuple(box.cpu().numpy()) for box in boxes]
-
-            masks = list(pred['instances'].pred_masks)
-            masks = [mask.cpu().numpy() for mask in masks]
-
-            scores = list(pred['instances'].scores)
-            scores = [score.cpu().numpy() for score in scores]
-
-            classes = list(pred['instances'].pred_classes)
-            classes = [cls.cpu().numpy() for cls in classes]
-
-            if zproject:
-                image = image[image.shape[0]//2]
-
-            tmpres = {'things': [], 'mask': None}
-            new_mask = np.zeros((image.shape[0], image.shape[1], self.cfg.MODEL.ROI_HEADS.NUM_CLASSES), dtype=np.uint16)
-
-            for n, mask in enumerate(masks):
-                if scores[n] < score_thresholds[classes[n]]:
-                    continue
-    
-                mask = mask.astype(np.uint16)
-
-                tmp = new_mask[:,:,classes[n]]
-                tmp[mask > 0] = n + 1
-                new_mask[:,:,classes[n]] = tmp
-
-                x1, y1, x2, y2 = map(int, boxes[n])
-
-                obj = {'id': n+1, 'class': int(classes[n]), 'box': [x1, y1, x2, y2], 'score': float(np.round(scores[n], decimals=2))}
-                tmpres['things'].append(obj)
-
-            if saving:
-                imsave(path.replace('.tif', '_mask.tif'), new_mask)
-                with open(path.replace('.tif', '_detections.json'), 'w') as file:
-                    json.dump(tmpres, file)
-
-            #tmpres['mask'] = mask
-            result[path] = tmpres
-
-        return result
-
-    def detect_one_image(self, image, zproject=True, norm=False):
-        image = self.preprocess_img(image, zproject=zproject, norm=norm)
+    def detect_one_image(self, image, zstack=False, norm=True):
+        image = self.preprocess_img(image, zstack=zstack, norm=norm)
 
         with torch.no_grad():
             return self.model([image])[0]
+
+    @staticmethod
+    def postprocess_instances(instances, possible_comps, optional_object_score_threshold=0.15, parent_override_threshold=2):
+        things, mask = postproc_multimask(instances, possible_comps, \
+            optional_object_score_threshold=optional_object_score_threshold, parent_override_threshold=parent_override_threshold)
+
+        return things, mask
