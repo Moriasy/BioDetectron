@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-
 def _match_scores(scores, composition, optional_object_score_threshold=0.25):
     
     # build score matrix:

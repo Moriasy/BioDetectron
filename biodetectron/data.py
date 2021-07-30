@@ -189,8 +189,6 @@ class MaskDetectionLoader(DatasetMapper):
             valupper = np.random.uniform(95,99.99999)
             lq, uq = np.percentile(image, [vallower, valupper])
             image = rescale_intensity(image, in_range=(lq,uq), out_range=(0,1))
-            # image = image - np.mean(image)
-            # image = image / np.std(image)
 
         if 'Quad' in dataset_dict["file_name"] or 'Trans' in dataset_dict["file_name"]:
             mask = dataset_dict['sem_seg'].astype(np.uint16)
