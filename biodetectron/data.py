@@ -6,7 +6,6 @@ import json
 import numpy as np
 import pandas as pd
 from glob import glob
-from pycocotools import mask as cocomask
 
 from skimage.io import imread
 from skimage.measure import regionprops
@@ -267,24 +266,6 @@ class MaskDetectionLoader(DatasetMapper):
                     "iscrowd": 0
                 }
                 annos.append(obj)
-
-        # for n in range(segmap.shape[2]):
-        #     boxes = regionprops(segmap[:,:,n])
-        #     for rp in boxes:
-        #         singlemask = np.zeros_like(segmap[:,:,n], dtype=np.uint8)
-        #         singlemask[segmap[:,:,n] == rp.label] = 1 
-
-        #         box = rp.bbox
-
-        #         obj = {
-        #             "bbox": [box[1], box[0], box[3], box[2]],
-        #             "bbox_mode": BoxMode.XYXY_ABS,
-        #             "segmentation": cocomask.encode(np.asfortranarray(singlemask)),
-        #             "category_id":  n,
-        #             "iscrowd": 0
-        #         }
-        #         annos.append(obj)
-
 
         # Convert bounding box annotations to instances.
         instances = utils.annotations_to_instances(

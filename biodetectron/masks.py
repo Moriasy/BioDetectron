@@ -2,7 +2,6 @@ import copy
 import itertools
 import numpy as np
 from typing import Any, Iterator, List, Union
-import pycocotools.mask as mask_util
 import torch
 
 from detectron2.structures import Boxes

@@ -1,6 +1,5 @@
 import os
 import errno
-import ffmpeg
 import numpy as np
 from glob import glob
 from skimage.io import imread
@@ -13,9 +12,6 @@ from fnmatch import fnmatch, filter
 from detectron2.structures import BoxMode
 from detectron2.data import MetadataCatalog
 from detectron2.utils.visualizer import Visualizer
-
-from pandas import DataFrame
-from pycocotools.coco import COCO
 
 from biodetectron.datasets import *
 
