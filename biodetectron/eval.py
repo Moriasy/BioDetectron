@@ -259,25 +259,31 @@ class MaskPredictor(BasePredictor):
         checkpointer.load(self.cfg.MODEL.WEIGHTS)
 
     @staticmethod
-    def preprocess_img(self, image, norm=False, zstack=False):
+    def image_to_tensor(image):
+        height, width = image.shape
+
+        image = np.expand_dims(image, axis=0)
+
+        image = torch.as_tensor(image)  
+        image = {"image": image, "height": height, "width": width}
+
+        return image
+
+    def preprocess_img(self, image, norm=True, zstack=False):
         if zstack:
             image = image[image.shape[0]//2]
 
         if len(image.shape) > 2:
             image = image[:,:,0]
-        if len(image.shape) < 3:
-            image = np.expand_dims(image, axis=-1)
-        elif image.shape[-1] == 1:
-            image = np.repeat(image, 3, axis=-1)
 
         if norm:
             image = image.astype(np.float32)
             lq, uq = np.percentile(image, [1, 99])
             image = rescale_intensity(image, in_range=(lq,uq), out_range=(0,1))
+        else:
+            image = image.astype(np.float32)
 
-        height, width = image.shape[0:2]
-        image = torch.as_tensor(image.transpose(2,0,1).astype("float32"))  
-        image = {"image": image, "height": height, "width": width}
+        image = self.image_to_tensor(image)
 
         return image
 
