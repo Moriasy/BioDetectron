@@ -296,11 +296,41 @@ class YeastMatePredictor(BasePredictor):
 
         return image
 
-    def detect_one_image(self, image, zstack=False, norm=True):
+    def detect(self, image):
+        with torch.no_grad():
+            return self.model([image])[0]['instances']
+
+    def inference(self, image, zstack=False, norm=True, \
+                possible_comps_dict={1:{2:(2,2),3:(0,1)},2:{4:(1,1),5:(1,1)}}, \
+                optional_object_score_threshold=0.15, \
+                parent_override_threshold=2):
+        
         image = self.preprocess_img(image, zstack=zstack, norm=norm)
 
-        with torch.no_grad():
-            return self.model([image])[0]
+        instances = self.detect(image)
+
+        things, mask = things, mask = postproc_multimask(instances, possible_comps_dict, \
+            optional_object_score_threshold=optional_object_score_threshold, parent_override_thresh=parent_override_threshold)
+
+        return things, mask
+
+    def inference_on_folder(self, folder, zstack=False, norm=True, \
+                possible_comps_dict={1:{2:(2,2),3:(0,1)},2:{4:(1,1),5:(1,1)}}, \
+                optional_object_score_threshold=0.15, \
+                parent_override_threshold=2):
+
+        #### EXTEND THIS FOR FULL FUNCTIONALITY
+
+        pathlist = glob(os.path.join(folder, '/*.tif')) + glob(os.path.join(folder, '/*.tiff'))
+
+        for path in folder:
+            things, mask = inference(imread(path))
+
+            resdict = {'image': os.path.basename(path), 'metadata': {}, 'detections': things}
+
+            imsave(path.replace('.tif', '_mask.tif'), mask)
+            with open(path.replace('.tif', '_detections.json'), 'w') as file:
+                doc = json.dump(resdict, file, indent=1)
 
     @staticmethod
     def postprocess_instances(instances, possible_comps, optional_object_score_threshold=0.15, parent_override_threshold=2):
