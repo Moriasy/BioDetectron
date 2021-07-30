@@ -1,3 +1,10 @@
+from biodetectron.ops import paste_masks_in_image
+from biodetectron.masks import BitMasks
+import detectron2
+
+detectron2.layers.paste_masks_in_image = paste_masks_in_image
+detectron2.structures.BitMasks = BitMasks
+
 import os
 import sys
 import copy
@@ -263,6 +270,8 @@ class YeastMatePredictor(BasePredictor):
         height, width = image.shape
 
         image = np.expand_dims(image, axis=0)
+        ### REMOVE
+        image = np.repeat(image, 3, axis=0)
 
         image = torch.as_tensor(image)  
         image = {"image": image, "height": height, "width": width}
