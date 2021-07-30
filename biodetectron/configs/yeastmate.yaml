@@ -19,7 +19,7 @@ INPUT:
   MIN_SIZE_TEST: 1608
 POSTPROCESSING:
   POSSIBLE_COMPS:
-    - {2: [2,2], 3: [0,1]}
-    - {4 : [1,1], 5: [1,1]}
+    - {"2": [2,2], "3": [0,1]}
+    - {"4" : [1,1], "5": [1,1]}
   OPTIONAL_OBJECT_SCORE_THRESHOLD: 0.15
   PARENT_OVERRIDE_THRESHOLD: 2

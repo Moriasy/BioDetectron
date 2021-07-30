@@ -106,6 +106,9 @@ def postproc_multimask(inst, possible_compositions,
 
     classes = list(inst.pred_classes)
     labels = [cls.cpu().numpy() for cls in classes]
+
+    if len(boxes) == 0:
+        return [], None
     
     #boxes, scores, labels, masks = check_iou(boxes, scores, labels, masks)
         

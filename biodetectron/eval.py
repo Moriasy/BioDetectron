@@ -233,7 +233,7 @@ class BasePredictor:
 
         return new_boxes, new_classes, new_scores
 
-class MaskPredictor(BasePredictor):
+class YeastMatePredictor(BasePredictor):
     def __init__(self, cfg, weights=None):
         self.cfg = get_cfg()
         self.cfg.MODEL.ROI_HEADS.NUM_MASK_CLASSES = None
@@ -297,9 +297,13 @@ class MaskPredictor(BasePredictor):
     def postprocess_instances(instances, possible_comps, optional_object_score_threshold=0.15, parent_override_threshold=2):
         possible_comps_dict = {}
         for n in range(len(possible_comps)):
-            possible_comps_dict[n+1] = possible_comps[n]
+            new_comps = {}
+            for key in possible_comps[n]:
+                new_comps[int(key)] = possible_comps[n][key]
+
+            possible_comps_dict[n+1] = new_comps
 
         things, mask = postproc_multimask(instances, possible_comps_dict, \
-            optional_object_score_threshold=optional_object_score_threshold, parent_override_threshold=parent_override_threshold)
+            optional_object_score_threshold=optional_object_score_threshold, parent_override_thresh=parent_override_threshold)
 
         return things, mask
