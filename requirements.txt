@@ -1,5 +1,3 @@
-pandas
 scikit-image
 imgaug
 numpy
-pycocotools
