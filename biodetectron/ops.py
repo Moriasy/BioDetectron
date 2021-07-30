@@ -1,7 +1,6 @@
 import numpy as np
 from typing import Tuple
 import torch
-from PIL import Image
 from torch.nn import functional as F
 
 from detectron2.structures import Boxes
