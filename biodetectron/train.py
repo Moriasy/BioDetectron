@@ -53,6 +53,12 @@ class Trainer(DefaultTrainer):
 def setup(args):
     cfg = get_cfg()
     cfg.MODEL.ROI_HEADS.NUM_MASK_CLASSES = None
+    cfg.MAX_VIS_PROPS = None
+
+    cfg.POSTPROCESSING = CN()
+    cfg.POSTPROCESSING.POSSIBLE_COMPS = None
+    cfg.POSTPROCESSING.OPTIONAL_OBJECT_SCORE_THRESHOLD = None
+    cfg.POSTPROCESSING.PARENT_OVERRIDE_THRESHOLD = None
 
     cfg.merge_from_file(args.config_file)
 
