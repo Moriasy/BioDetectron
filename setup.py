@@ -23,5 +23,6 @@ setuptools.setup(
         "scikit-image",
         "imgaug",
         "numpy",
+        'scipy',
     ]
 )
