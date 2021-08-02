@@ -1,5 +1,5 @@
 _BASE_: "./yeastmate_advanced.yaml"
-OUTPUT_DIR: '/scratch/bunk/logs'        # Set output path for saved weights.
+OUTPUT_DIR: '/scratch/moriasy/logs'        # Set output path for saved weights.
 MODEL:
   DEVICE: "cuda"            # 'cpu' for CPU prediction, 'cuda' for GPU prediction
   ROI_HEADS:
