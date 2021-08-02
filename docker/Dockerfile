@@ -38,7 +38,7 @@ ENV TORCH_CUDA_ARCH_LIST="Kepler;Kepler+Tesla;Maxwell;Maxwell+Tegra;Pascal;Volta
 ENV FORCE_CUDA="1"
 RUN pip install git+https://github.com/facebookresearch/detectron2
 # install biodetectron
-RUN pip install git+https://github.com/CALM-LMU/BioDetectron.git
+RUN pip install git+https://github.com/Moriasy/BioDetectron.git
 
 # Set a fixed model cache directory.
 ENV FVCORE_CACHE="/tmp"
